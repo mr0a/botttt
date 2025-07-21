@@ -1,41 +1,49 @@
 # Technical Architecture Document
+
 ## Realtime Analysis and Trading Application
 
 ### Document Information
-- **Version**: 1.0
-- **Date**: January 19, 2025
-- **Author**: Technical Architect
-- **Status**: Initial Draft
 
----
+  - **Version**: 1.1
+  - **Date**: July 21, 2025
+  - **Author**: Technical Architect
+  - **Status**: Updated Draft
+
+-----
 
 ## Table of Contents
-1. [Executive Summary](#executive-summary)
-2. [High-Level System Design](#high-level-system-design)
-3. [Technology Stack](#technology-stack)
-4. [Component Deep-Dive](#component-deep-dive)
-5. [Data Model](#data-model)
-6. [API Design](#api-design)
-7. [Performance Architecture](#performance-architecture)
-8. [Security Architecture](#security-architecture)
-9. [Deployment Strategy](#deployment-strategy)
-10. [Monitoring & Observability](#monitoring--observability)
 
----
+1.  [Executive Summary](https://www.google.com/search?q=%23executive-summary)
+2.  [High-Level System Design](https://www.google.com/search?q=%23high-level-system-design)
+3.  [Technology Stack](https://www.google.com/search?q=%23technology-stack)
+4.  [Component Deep-Dive](https://www.google.com/search?q=%23component-deep-dive)
+5.  [Data Model](https://www.google.com/search?q=%23data-model)
+6.  [API Design](https://www.google.com/search?q=%23api-design)
+7.  [Performance Architecture](https://www.google.com/search?q=%23performance-architecture)
+8.  [Security Architecture](https://www.google.com/search?q=%23security-architecture)
+9.  [Deployment Strategy](https://www.google.com/search?q=%23deployment-strategy)
+10. [Monitoring & Observability](https://www.google.com/search?q=%23monitoring--observability)
+11. [Operational Modes](https://www.google.com/search?q=%23operational-modes)
+12. [Robustness & Fault Tolerance](https://www.google.com/search?q=%23robustness--fault-tolerance)
+
+-----
 
 ## Executive Summary
 
-This document defines the technical architecture for a high-performance, real-time analysis and trading application designed for individual intraday traders. The system prioritizes sub-300ms execution latency, supports up to 500 instruments and 30-40 concurrent strategies, and provides comprehensive risk management capabilities.
+This document defines the technical architecture for a high-performance, real-time analysis and trading application designed for individual intraday traders. The system prioritizes sub-300ms execution latency, supports up to 500 instruments and 30-40 concurrent strategies, and provides comprehensive risk management capabilities. The application is designed for continuous operation on a server, with distinct entry points for live/paper trading and backtesting to ensure operational isolation.
 
 ### Key Architectural Decisions
-- **Monolithic Architecture**: Monolithic Modular Components with clear separation of concerns
-- **Single Application**: A single application executed in a single system.
-- **Event-Driven Processing**: Asynchronous message processing for optimal performance
-- **In-Memory Computing**: Critical data cached for sub-300ms response times
-- **Broker-Agnostic Design**: Generic interface supporting multiple broker integrations
-- **Time-Series Optimized Storage**: PostgreSQL with TimescaleDB for efficient data handling
 
----
+  - **Monolithic Architecture**: Monolithic Modular Components with clear separation of concerns, executing as a single application.
+  - **Continuous Operation**: Designed for 24/7 runtime on a server with scheduled task capabilities.
+  - **Event-Driven Processing**: Asynchronous message processing for optimal performance.
+  - **In-Memory Computing**: Critical data cached for sub-300ms response times.
+  - **Broker-Agnostic Design**: Generic interface supporting multiple broker integrations.
+  - **Time-Series Optimized Storage**: PostgreSQL with TimescaleDB for efficient data handling.
+  - **Dependency Injection**: Utilizing InversifyJS for modularity and testability.
+  - **Operational Isolation**: Separate executable entry points for live trading/paper trading and backtesting.
+
+-----
 
 ## High-Level System Design
 
@@ -59,12 +67,14 @@ graph TB
             SM[Strategy Manager Module]
             RM[Risk Manager Module]
             BM[Broker Manager Module]
+            SCHEDULER[Task Scheduler]
         end
         
         subgraph "Internal Memory"
             CACHE[In-Memory Cache]
             QUEUE[Event Queue]
             POSITIONS[Active Positions]
+            DATA_STRUCT[Price/Indicator Data Structure]
         end
     end
     
@@ -88,6 +98,7 @@ graph TB
     DI --> CACHE
     DI --> QUEUE
     DI --> TSDB
+    DI --> DATA_STRUCT
     
     QUEUE --> AE
     QUEUE --> TE
@@ -95,6 +106,7 @@ graph TB
     
     AE --> CACHE
     AE --> TSDB
+    AE --> DATA_STRUCT
     
     TE --> CACHE
     TE --> POSITIONS
@@ -104,6 +116,7 @@ graph TB
     SM --> AE
     SM --> TE
     SM --> RM
+    SM --> DATA_STRUCT
     
     RM --> TE
     RM --> CACHE
@@ -113,6 +126,11 @@ graph TB
     HTTP --> TSDB
     WS --> CACHE
     WS --> QUEUE
+    WS --> DATA_STRUCT
+    
+    SCHEDULER --> BM
+    SCHEDULER --> DI
+    SCHEDULER --> TSDB
     
     UI --> HTTP
     UI --> WS
@@ -121,26 +139,30 @@ graph TB
 
 ### Core Design Principles
 
-1. **Performance First**: Every component optimized for the 300ms latency requirement
-2. **Fault Tolerance**: Graceful degradation and automatic recovery mechanisms
-3. **Modularity**: Loosely coupled services with clear interfaces
-4. **Observability**: Comprehensive logging, metrics, and monitoring
+1.  **Performance First**: Every component optimized for the 300ms latency requirement.
+2.  **Fault Tolerance**: Graceful degradation, automatic recovery, and defined crash recovery mechanisms.
+3.  **Modularity**: Loosely coupled components with clear interfaces, facilitated by Dependency Injection.
+4.  **Observability**: Comprehensive logging, metrics, and monitoring.
+5.  **Abstraction**: Clear interfaces for external services (e.g., brokers) to minimize impact of changes.
 
----
+-----
 
 ## Technology Stack
 
 ### Backend Services
+
 | Component | Technology | Justification |
 |-----------|------------|---------------|
 | **Runtime** | Bun | Excellent async I/O, built-in tools, TypeScript support, fastest JS runtime |
 | **Language** | TypeScript 5.x | Strong typing, compile-time error detection, better maintainability |
 | **Framework** | ElysiaJS | High-performance HTTP server, built for Bun, type-safe APIs |
 | **WebSocket** | Bun Native WebSocket | Built-in WebSocket support, optimized for performance |
+| **Dependency Injection** | InversifyJS | Robust and flexible IoC container for TypeScript, promoting modularity and testability |
 | **Caching** | In-Memory Maps/Sets | Ultra-fast access, no network overhead |
 | **Message Queue** | Internal Event Emitter | Zero-latency in-process communication |
 
 ### Database & Storage
+
 | Component | Technology | Justification |
 |-----------|------------|---------------|
 | **Primary DB** | PostgreSQL 15+ | ACID compliance, advanced features, reliability |
@@ -150,6 +172,7 @@ graph TB
 | **Migrations** | Custom Bun scripts | TypeScript-based migrations using Bun's file system APIs |
 
 ### Frontend
+
 | Component | Technology | Justification |
 |-----------|------------|---------------|
 | **Framework** | Svelte 5 with Runes | Compiled output, excellent performance, small bundle size |
@@ -159,36 +182,43 @@ graph TB
 | **State Management** | Svelte $state | Built-in reactivity, simple but powerful |
 
 ### Development & Operations
+
 | Component | Technology | Justification |
 |-----------|------------|---------------|
 | **Containerization** | Docker + Docker Compose | Consistent environments, easy deployment |
-| **Process Manager** | Bun PM | Built-in process management and clustering |
+| **Process Manager** | Bun PM | Built-in process management (for managing separate entry points) |
 | **Monitoring** | Prometheus + Grafana | Metrics collection and visualization |
 | **Logging** | Bun's console + structured logging | Built-in logging capabilities, no external dependencies |
 | **Testing** | Bun Test + Playwright | Native test runner, fast execution, E2E testing |
 | **Package Manager** | Bun | Ultra-fast package installation and management |
+| **Scheduler** | Node-cron / Internal Bun-based scheduler | For executing tasks at specific times (e.g., market open/close routines) |
+| **Version Control** | Git | Standard for collaborative code development and history tracking |
 
----
+-----
 
 ## Component Deep-Dive
 
-### 1. Data Ingestion Module
+### 1\. Data Ingestion Module
 
-**Responsibility**: Collect and normalize real-time market data from brokers
+**Responsibility**: Collect and normalize real-time market data from brokers.
 
 **Key Features**:
-- Multi-broker WebSocket connection management
-- Data validation and normalization
-- Real-time data distribution via internal event emitters
-- Automatic reconnection and error handling
-- Data archival to TimescaleDB
+
+  - Multi-broker WebSocket connection management.
+  - Data validation and normalization.
+  - Real-time data distribution via internal event emitters to the Analysis Engine and Strategies.
+  - Automatic reconnection and error handling for data feeds.
+  - Data archival to TimescaleDB.
+  - **Abstraction of External Services**: Utilizes clear interfaces for broker interactions to minimize impact of external API changes.
 
 **Performance Optimizations**:
-- Native Bun WebSocket connections for broker APIs
-- Batch processing for database writes using Bun's async I/O
-- In-memory buffering using native JavaScript Maps and Sets
-- Bun's worker threads for CPU-intensive data processing
-- Zero-copy data structures for tick data
+
+  - Native Bun WebSocket connections for broker APIs.
+  - Batch processing for database writes using Bun's async I/O.
+  - In-memory buffering using native JavaScript Maps and Sets.
+  - Zero-copy data structures for tick data.
+
+<!-- end list -->
 
 ```typescript
 interface DataIngestionService {
@@ -206,22 +236,30 @@ interface DataIngestionService {
 }
 ```
 
-### 2. Analysis Engine
+### 2\. Analysis Engine
 
-**Responsibility**: Process market data and generate trading signals
+**Responsibility**: Process market data, maintain real-time calculated values, and generate trading signals.
 
 **Key Features**:
-- Technical indicator calculations (EMA, RSI, MACD, etc.)
-- Pattern recognition algorithms
-- Statistical analysis and market summaries
-- Real-time signal generation
-- Historical data analysis for backtesting
+
+  - **Real-time Data Structure**: Maintains a separate, optimized in-memory data structure for current price data (ticks and OHLC candles) and derived technical indicator values.
+  - **Real-time Aggregation**: Aggregates tick data into second-level and 5-minute OHLC candles.
+  - Technical indicator calculations (EMA, RSI, MACD, etc.).
+  - Pattern recognition algorithms.
+  - Statistical analysis and market summaries.
+  - Real-time signal generation.
+  - Historical data analysis for backtesting.
+
+**Behavior of Data Structure**: Every time new price data (ticks or candles) is ingested and updated by the Data Ingestion Module, this in-memory data structure will automatically trigger updates to the pre-calculated technical indicator values associated with those instruments and timeframes. This ensures that the analysis engine and strategies can consume consistently updated data without needing to re-calculate indicators on demand.
 
 **Performance Optimizations**:
-- Sliding window algorithms for indicators
-- Vectorized calculations using optimized libraries
-- Result caching for frequently accessed data
-- Parallel processing for multiple instruments
+
+  - Sliding window algorithms for indicators.
+  - Vectorized calculations using optimized libraries.
+  - Result caching for frequently accessed data.
+  - Parallel processing for multiple instruments (within the single application process).
+
+<!-- end list -->
 
 ```typescript
 interface AnalysisEngine {
@@ -238,22 +276,27 @@ interface AnalysisEngine {
 }
 ```
 
-### 3. Trading Engine
+### 3\. Trading Engine
 
-**Responsibility**: Execute trades and manage positions
+**Responsibility**: Execute trades and manage positions. Handles both live and paper trading modes.
 
 **Key Features**:
-- Order management (placement, modification, cancellation)
-- Position tracking and management
-- Risk controls and position sizing
-- Broker API integration
-- Trade history and audit trail
+
+  - Order management (placement, modification, cancellation).
+  - Position tracking and management.
+  - Risk controls and position sizing.
+  - Broker API integration (via Broker Manager).
+  - Trade history and audit trail.
+  - **Paper Trading**: In paper trading mode, trades are simulated, based on Last Traded Price (LTP), and stored in the database without interaction with a real broker.
 
 **Performance Optimizations**:
-- In-memory position tracking
-- Asynchronous order processing
-- Order queue management
-- Failover mechanisms for broker connectivity
+
+  - In-memory position tracking.
+  - Asynchronous order processing.
+  - Order queue management.
+  - Failover mechanisms for broker connectivity.
+
+<!-- end list -->
 
 ```typescript
 interface TradingEngine {
@@ -272,27 +315,32 @@ interface TradingEngine {
 }
 ```
 
-### 4. Strategy Manager
+### 4\. Strategy Manager
 
-**Responsibility**: Execute trading strategies and manage their lifecycle
+**Responsibility**: Executes trading strategies and manages their lifecycle.
 
 **Key Features**:
-- Strategy registration and discovery
-- Configuration management
-- Execution scheduling and monitoring
-- Backtesting capabilities
-- Performance tracking
+
+  - **Strategy Registration**: Strategies will be registered using decorators (e.g., `@Strategy('MyStrategyName')`), allowing the Strategy Manager to discover and load them at runtime.
+  - **Strategy Execution**: Strategies are implemented as normal classes, instantiated and managed by an internal "Strategy Executor." The Executor will handle the lifecycle of strategy instances, providing them with necessary data feeds and interacting with the Trading Engine and Risk Manager.
+  - Configuration management for each strategy, including support for custom timeframes, multiple instruments, and configurable parameters.
+  - Execution scheduling and monitoring.
+  - Backtesting capabilities.
+  - Performance tracking.
+  - **Dynamic Control**: Provides API endpoints to dynamically enable or disable strategies.
 
 **Performance Optimizations**:
-- Strategy isolation using worker threads
-- Configurable execution intervals
-- Efficient data access patterns
-- Memory-efficient backtesting engine
+
+  - Efficient data access patterns to the shared in-memory data structures.
+  - Configurable execution intervals.
+  - Memory-efficient backtesting engine.
+
+<!-- end list -->
 
 ```typescript
 interface StrategyManager {
   // Strategy lifecycle
-  registerStrategy(strategy: TradingStrategy): void;
+  registerStrategy(strategy: TradingStrategy): void; // Uses decorators for auto-discovery
   enableStrategy(strategyId: string): Promise<void>;
   disableStrategy(strategyId: string): Promise<void>;
   
@@ -304,22 +352,31 @@ interface StrategyManager {
 }
 ```
 
-### 5. Risk Manager
+### 5\. Risk Manager
 
-**Responsibility**: Monitor and control trading risk across all strategies
+**Responsibility**: Monitors and controls trading risk across all strategies and the entire portfolio.
 
 **Key Features**:
-- Real-time position monitoring
-- Dynamic position sizing
-- Stop-loss management
-- Portfolio-level risk controls
-- Emergency position closure
+
+  - Real-time position monitoring.
+  - **Dynamic Position Sizing**: Reduces position size based on adverse price movements or counter-position analysis.
+  - **Advanced Stop-Loss Mechanism**:
+      * Places Good-Til-Triggered (GTT) orders as primary stop-loss.
+      * Actively monitors price action to attempt to close positions at the stop-loss price via market orders *before* the GTT order triggers, to minimize slippage.
+      * Implements fallback to immediate market execution if the primary attempt fails or if the market moves rapidly.
+      * Ensures all open positions have a mandatory stop-loss.
+      * Monitors and cancels GTT orders that are no longer relevant.
+  - Portfolio-level risk controls.
+  - Emergency position closure.
 
 **Performance Optimizations**:
-- Real-time risk calculations
-- Efficient position aggregation
-- Automated risk responses
-- Parallel risk monitoring for multiple strategies
+
+  - Real-time risk calculations.
+  - Efficient position aggregation.
+  - Automated risk responses.
+  - Concurrent risk monitoring for multiple strategies.
+
+<!-- end list -->
 
 ```typescript
 interface RiskManager {
@@ -328,19 +385,45 @@ interface RiskManager {
   monitorPositionLimits(): void;
   
   // Risk controls
-  enforceStopLoss(position: Position): Promise<void>;
+  enforceStopLoss(position: Position): Promise<void>; // Manages GTT and market-based stop-loss
   reducePositionSize(positionId: string, percentage: number): Promise<void>;
   emergencyCloseAll(): Promise<void>;
 }
 ```
 
----
+### 6\. Broker Manager Module
+
+**Responsibility**: Manages all interactions with external stock broker APIs.
+
+**Key Features**:
+
+  - **Broker-Agnostic Design**: Provides a generic interface to support multiple broker integrations through adapters.
+  - **Initial Connectivity**: Manages automatic broker authentication and token management on application startup.
+  - **Instrument Synchronization**: Fetches and updates instrument lists from brokers on startup.
+  - Handles broker API rate limits and error recovery for connectivity.
+  - Translates internal trading commands into broker-specific API calls.
+
+### 7\. Task Scheduler
+
+**Responsibility**: Executes predefined tasks at specified times or intervals.
+
+**Key Features**:
+
+  - Integration with `node-cron` or a custom Bun-based scheduler.
+  - Schedules critical operational tasks such as:
+      * Connecting to broker APIs at market open.
+      * Fetching daily reports or historical data.
+      * Periodic token refreshes for broker authentication.
+      * Database maintenance routines.
+
+-----
 
 ## Data Model
 
 ### TimescaleDB Schema Design
 
-#### 1. Instruments Table
+#### 1\. Instruments Table
+
 ```sql
 CREATE TABLE instruments (
     id SERIAL PRIMARY KEY,
@@ -360,7 +443,8 @@ CREATE INDEX idx_instruments_symbol ON instruments(symbol);
 CREATE INDEX idx_instruments_active ON instruments(is_active);
 ```
 
-#### 2. Tick Data Table (Hypertable)
+#### 2\. Tick Data Table (Hypertable)
+
 ```sql
 CREATE TABLE tick_data (
     time TIMESTAMPTZ NOT NULL,
@@ -380,7 +464,8 @@ CREATE INDEX idx_tick_data_instrument_time ON tick_data (instrument_id, time DES
 CREATE INDEX idx_tick_data_price ON tick_data (price);
 ```
 
-#### 3. OHLC Candles Table (Hypertable)
+#### 3\. OHLC Candles Table (Hypertable)
+
 ```sql
 CREATE TABLE ohlc_candles (
     time TIMESTAMPTZ NOT NULL,
@@ -401,7 +486,8 @@ SELECT create_hypertable('ohlc_candles', 'time', chunk_time_interval => INTERVAL
 CREATE INDEX idx_ohlc_instrument_timeframe ON ohlc_candles (instrument_id, timeframe, time DESC);
 ```
 
-#### 4. Order Book Data Table (Hypertable)
+#### 4\. Order Book Data Table (Hypertable)
+
 ```sql
 CREATE TABLE order_book_snapshots (
     time TIMESTAMPTZ NOT NULL,
@@ -418,7 +504,8 @@ CREATE TABLE order_book_snapshots (
 SELECT create_hypertable('order_book_snapshots', 'time', chunk_time_interval => INTERVAL '1 hour');
 ```
 
-#### 5. Orders Table
+#### 5\. Orders Table
+
 ```sql
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -443,7 +530,8 @@ CREATE INDEX idx_orders_status ON orders(status);
 CREATE INDEX idx_orders_created_at ON orders(created_at DESC);
 ```
 
-#### 6. Positions Table
+#### 6\. Positions Table
+
 ```sql
 CREATE TABLE positions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -467,7 +555,8 @@ CREATE UNIQUE INDEX idx_positions_strategy_instrument ON positions(strategy_id, 
     WHERE status = 'OPEN';
 ```
 
-#### 7. Strategies Table
+#### 7\. Strategies Table
+
 ```sql
 CREATE TABLE strategies (
     id VARCHAR(100) PRIMARY KEY,
@@ -498,13 +587,14 @@ SELECT add_retention_policy('ohlc_candles', INTERVAL '2 years');
 SELECT add_retention_policy('order_book_snapshots', INTERVAL '7 days');
 ```
 
----
+-----
 
 ## API Design
 
 ### REST API Endpoints
 
 #### Authentication & Authorization
+
 ```typescript
 POST /api/auth/login
 POST /api/auth/logout
@@ -512,6 +602,7 @@ GET  /api/auth/profile
 ```
 
 #### Strategy Management
+
 ```typescript
 GET    /api/strategies              // List all strategies
 GET    /api/strategies/:id          // Get strategy details
@@ -522,14 +613,16 @@ GET    /api/strategies/:id/performance // Get strategy performance metrics
 ```
 
 #### Market Data
+
 ```typescript
 GET /api/instruments                    // List available instruments
-GET /api/market-data/:instrument/candles // Get OHLC data
-GET /api/market-data/:instrument/ticks   // Get tick data
-GET /api/market-data/:instrument/depth   // Get order book data
+GET /api/market-data/:instrument/candles // Get OHLC data for charts and analysis
+GET /api/market-data/:instrument/ticks   // Get tick data for detailed analysis
+GET /api/market-data/:instrument/depth   // Get order book data for visualization
 ```
 
 #### Trading
+
 ```typescript
 GET    /api/orders                  // List orders
 POST   /api/orders                  // Place new order
@@ -540,6 +633,7 @@ POST   /api/positions/:id/close     // Close position
 ```
 
 #### Backtesting
+
 ```typescript
 POST /api/backtest                  // Start backtest
 GET  /api/backtest/:id              // Get backtest status
@@ -547,6 +641,7 @@ GET  /api/backtest/:id/results      // Get backtest results
 ```
 
 #### Risk Management
+
 ```typescript
 GET /api/risk/portfolio             // Get portfolio risk metrics
 GET /api/risk/positions             // Get position risk analysis
@@ -556,6 +651,7 @@ POST /api/risk/emergency-stop       // Emergency stop all trading
 ### WebSocket API Events
 
 #### Market Data Streams
+
 ```typescript
 // Subscribe to real-time tick data
 ws.send({
@@ -574,6 +670,7 @@ ws.send({
 ```
 
 #### Trading Updates
+
 ```typescript
 // Order status updates
 {
@@ -594,6 +691,7 @@ ws.send({
 ```
 
 #### Strategy Monitoring
+
 ```typescript
 // Strategy performance updates
 {
@@ -605,20 +703,22 @@ ws.send({
 }
 ```
 
----
+-----
 
 ## Performance Architecture
 
 ### Sub-300ms Latency Requirements
 
-#### 1. In-Memory Data Management
-- **Native JavaScript Maps**: Critical market data cached with sub-microsecond access time
-- **In-Memory Positions**: Active positions stored in optimized data structures
-- **Bun Connection Pooling**: Pre-established database connections using Bun's native pooling
-- **Prepared Statements**: Pre-compiled SQL queries for faster execution
-- **Zero-Copy Buffers**: Efficient memory management for high-frequency data
+#### 1\. In-Memory Data Management
 
-#### 2. Asynchronous Processing Pipeline
+  - **Native JavaScript Maps**: Critical market data cached with sub-microsecond access time.
+  - **In-Memory Positions**: Active positions stored in optimized data structures.
+  - **Bun Connection Pooling**: Pre-established database connections using Bun's native pooling.
+  - **Prepared Statements**: Pre-compiled SQL queries for faster execution.
+  - **Zero-Copy Buffers**: Efficient memory management for high-frequency data.
+
+#### 2\. Asynchronous Processing Pipeline
+
 ```typescript
 // High-performance monolithic data processing pipeline
 class DataProcessingPipeline {
@@ -660,21 +760,24 @@ class DataProcessingPipeline {
 }
 ```
 
-#### 3. Database Optimization
-- **TimescaleDB Hypertables**: Automatic partitioning for time-series data
-- **Strategic Indexing**: Optimized indexes for common query patterns
-- **Connection Pooling**: Persistent database connections
-- **Batch Operations**: Bulk inserts for historical data
+#### 3\. Database Optimization
 
-#### 4. Network Optimization
-- **WebSocket Compression**: Reduced payload sizes
-- **Message Batching**: Multiple updates in single message
-- **Keep-Alive Connections**: Persistent broker connections
-- **Local Data Centers**: VPS deployment near broker servers
+  - **TimescaleDB Hypertables**: Automatic partitioning for time-series data.
+  - **Strategic Indexing**: Optimized indexes for common query patterns.
+  - **Connection Pooling**: Persistent database connections.
+  - **Batch Operations**: Bulk inserts for historical data.
+
+#### 4\. Network Optimization
+
+  - **WebSocket Compression**: Reduced payload sizes.
+  - **Message Batching**: Multiple updates in single message.
+  - **Keep-Alive Connections**: Persistent broker connections.
+  - **Local Data Centers**: VPS deployment near broker servers.
 
 ### Vertical Scaling Architecture
 
-#### 1. Single-Application Scaling Strategy
+#### 1\. Single-Application Scaling Strategy
+
 ```typescript
 // Monolithic application configuration for maximum performance
 const applicationConfig = {
@@ -687,21 +790,19 @@ const applicationConfig = {
     positionsCache: '512MB',
     strategiesMemory: '1GB'
   },
-  bunWorkers: {
-    analysisWorkers: 4,
-    dataProcessingWorkers: 2,
-    brokerConnectionWorkers: 2
-  }
+  // Removed bunWorkers as strategies run as normal classes without dedicated workers
 };
 ```
 
-#### 2. Memory-Optimized Load Distribution
-- **Instrument Partitioning**: Data structures partitioned by instrument for cache locality
-- **Strategy Isolation**: Each strategy runs in isolated memory space using Bun workers
-- **Priority Processing**: Critical orders bypass queue for immediate execution
-- **Memory Pools**: Pre-allocated object pools to minimize garbage collection
+#### 2\. Memory-Optimized Load Distribution
 
-#### 3. Resource Management
+  - **Instrument Partitioning**: Data structures partitioned by instrument for cache locality.
+  - **Strategy Management**: Strategies run within the main application process, managed by the Strategy Manager. Concurrency is handled via Bun's event loop (`async/await`) for I/O-bound operations.
+  - **Priority Processing**: Critical orders bypass queue for immediate execution.
+  - **Memory Pools**: Pre-allocated object pools to minimize garbage collection.
+
+#### 3\. Resource Management
+
 ```typescript
 // Single-application resource monitoring
 class ResourceManager {
@@ -716,14 +817,13 @@ class ResourceManager {
       throw new Error('Insufficient memory for strategy allocation');
     }
     
-    await this.deployStrategyInWorker(strategy);
+    // No worker deployment, strategies are instantiated as normal classes
   }
   
   async monitorPerformance(): Promise<void> {
     const metrics = await this.collectMetrics();
     if (metrics.latency > 250) {
       await this.optimizeMemoryUsage();
-      await this.adjustWorkerThreads();
     }
   }
   
@@ -735,13 +835,14 @@ class ResourceManager {
 }
 ```
 
----
+-----
 
 ## Security Architecture
 
 ### Authentication & Authorization
 
-#### 1. Multi-Factor Authentication (Recommended)
+#### 1\. Multi-Factor Authentication (Recommended)
+
 ```typescript
 interface AuthenticationService {
   // Primary authentication
@@ -757,15 +858,17 @@ interface AuthenticationService {
 }
 ```
 
-#### 2. API Security
-- **JWT Tokens**: Stateless authentication with short expiry
-- **Rate Limiting**: Prevent API abuse and DoS attacks
-- **Request Validation**: Input sanitization and validation
-- **CORS Configuration**: Restricted cross-origin requests
+#### 2\. API Security
+
+  - **JWT Tokens**: Stateless authentication with short expiry.
+  - **Rate Limiting**: Prevent API abuse and DoS attacks.
+  - **Request Validation**: Input sanitization and validation.
+  - **CORS Configuration**: Restricted cross-origin requests.
 
 ### Data Protection
 
-#### 1. Encryption at Rest
+#### 1\. Encryption at Rest
+
 ```sql
 -- Encrypted broker credentials
 CREATE TABLE broker_credentials (
@@ -778,12 +881,16 @@ CREATE TABLE broker_credentials (
 );
 ```
 
-#### 2. Encryption in Transit
-- **TLS 1.3**: All HTTP/WebSocket communications
-- **Certificate Pinning**: Prevent man-in-the-middle attacks
-- **Secure Headers**: HSTS, CSP, and other security headers
+All sensitive data, including broker credentials, is stored encrypted at rest in the database. The `SecretsManager` handles runtime decryption.
 
-#### 3. Secrets Management
+#### 2\. Encryption in Transit
+
+  - **TLS 1.3**: All HTTP/WebSocket communications.
+  - **Certificate Pinning**: Prevent man-in-the-middle attacks.
+  - **Secure Headers**: HSTS, CSP, and other security headers.
+
+#### 3\. Secrets Management
+
 ```typescript
 // Environment-based configuration
 class SecretsManager {
@@ -799,13 +906,14 @@ class SecretsManager {
 }
 ```
 
----
+-----
 
 ## Deployment Strategy
 
 ### VPS Infrastructure Requirements
 
-#### 1. Server Specifications
+#### 1\. Server Specifications
+
 ```yaml
 # Minimum VPS Requirements
 cpu: 4 vCPUs (2.4GHz+)
@@ -816,7 +924,8 @@ location: Near broker data centers
 operating_system: Ubuntu 22.04 LTS
 ```
 
-#### 2. Docker Configuration
+#### 2\. Docker Configuration
+
 ```dockerfile
 # Optimized Bun-based container
 FROM oven/bun:1 AS base
@@ -844,15 +953,16 @@ USER bunuser
 EXPOSE 3000
 
 # Start the monolithic application
-CMD ["bun", "run", "start"]
+# CMD ["bun", "run", "start"] - Replaced by specific entry points for operational isolation
 ```
 
-#### 3. Docker Compose Architecture
+#### 3\. Docker Compose Architecture
+
 ```yaml
 version: '3.8'
 services:
-  # Single Trading Application
-  trading-app:
+  # Trading Application - Live/Paper Trading Mode
+  trading-app-live:
     build: .
     ports:
       - "3000:3000"  # HTTP and WebSocket on same port
@@ -860,6 +970,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=${DATABASE_URL}
       - BUN_ENV=production
+      - APP_MODE=live_trading # New env var for operational mode
     depends_on:
       - postgres
     restart: unless-stopped
@@ -870,6 +981,24 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    command: bun run start:live # Specific entry point for live/paper trading
+
+  # Trading Application - Backtesting Mode (optional, can be run on demand)
+  # This service can be started separately when backtesting is needed
+  trading-app-backtest:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - BUN_ENV=production
+      - APP_MODE=backtesting # New env var for operational mode
+    depends_on:
+      - postgres
+    # No exposed ports if backtesting is purely CLI/batch driven
+    # volumes:
+    #   - ./backtest_results:/app/backtest_results
+    restart: "no" # Backtesting is typically a one-off task
+    command: bun run start:backtest # Specific entry point for backtesting
     
   # Database Service
   postgres:
@@ -895,7 +1024,7 @@ services:
       - API_URL=http://localhost:3000
       - WS_URL=ws://localhost:3000
     depends_on:
-      - trading-app
+      - trading-app-live # Frontend depends on the live trading app's web server
     restart: unless-stopped
     
   # Monitoring Services
@@ -929,7 +1058,8 @@ volumes:
 
 ### Deployment Pipeline
 
-#### 1. CI/CD Configuration (.github/workflows/deploy.yml)
+#### 1\. CI/CD Configuration (.github/workflows/deploy.yml)
+
 ```yaml
 name: Deploy to Production
 
@@ -945,9 +1075,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - run: npm ci
-      - run: npm run test
-      - run: npm run lint
+      - run: bun install # Use bun install
+      - run: bun test # Use bun test
+      - run: bun run lint # Use bun run lint
       
   deploy:
     needs: test
@@ -963,12 +1093,13 @@ jobs:
           script: |
             cd /opt/trading-app
             git pull origin main
-            docker-compose down
-            docker-compose build
-            docker-compose up -d
+            docker-compose down trading-app-live # Only bring down the live trading service
+            docker-compose build trading-app-live
+            docker-compose up -d trading-app-live # Only bring up the live trading service
 ```
 
-#### 2. Environment Configuration
+#### 2\. Environment Configuration
+
 ```bash
 # Production environment variables
 NODE_ENV=production
@@ -992,13 +1123,14 @@ MEMORY_ALLOCATION_LIMIT=8GB
 # Application configuration
 HTTP_PORT=3000
 LOG_LEVEL=info
-ENABLE_CLUSTERING=true
-WORKER_THREADS=4
+ENABLE_CLUSTERING=false # Bun workers removed, clustering might be re-evaluated
+# WORKER_THREADS=4 # Not applicable with new strategy execution model
 ```
 
 ### Backup & Recovery Strategy
 
-#### 1. Database Backups
+#### 1\. Database Backups
+
 ```bash
 #!/bin/bash
 # Daily database backup script
@@ -1012,7 +1144,8 @@ pg_dump -h localhost -U trading_user trading_db | gzip > "$BACKUP_DIR/backup_$DA
 find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +7 -delete
 ```
 
-#### 2. Application State Backup
+#### 2\. Application State Backup
+
 ```bash
 #!/bin/bash
 # Backup application configuration and logs
@@ -1037,13 +1170,14 @@ tar -czf "$BACKUP_DIR/app-state/state_$DATE.tar.gz" \
 find $BACKUP_DIR -name "*.tar.gz" -mtime +14 -delete
 ```
 
----
+-----
 
 ## Monitoring & Observability
 
 ### System Metrics
 
-#### 1. Performance Metrics
+#### 1\. Performance Metrics
+
 ```typescript
 // Key performance indicators
 interface PerformanceMetrics {
@@ -1065,7 +1199,8 @@ interface PerformanceMetrics {
 }
 ```
 
-#### 2. Business Metrics
+#### 2\. Business Metrics
+
 ```typescript
 interface BusinessMetrics {
   // Trading metrics
@@ -1086,7 +1221,8 @@ interface BusinessMetrics {
 }
 ```
 
-#### 3. Prometheus Configuration
+#### 3\. Prometheus Configuration
+
 ```yaml
 # prometheus.yml
 global:
@@ -1099,13 +1235,13 @@ rule_files:
 scrape_configs:
   - job_name: 'trading-api'
     static_configs:
-      - targets: ['api-server:3000']
+      - targets: ['trading-app-live:3000'] # Target the live trading app
     metrics_path: '/metrics'
     scrape_interval: 5s
     
   - job_name: 'trading-websocket'
     static_configs:
-      - targets: ['websocket-server:3001']
+      - targets: ['trading-app-live:3000'] # WebSocket and HTTP on same port
     metrics_path: '/metrics'
     scrape_interval: 5s
     
@@ -1115,7 +1251,7 @@ scrape_configs:
     
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ['redis-exporter:9121'] # If Redis is introduced later
 
 alerting:
   alertmanagers:
@@ -1124,7 +1260,8 @@ alerting:
           - alertmanager:9093
 ```
 
-#### 4. Critical Alerts Configuration
+#### 4\. Critical Alerts Configuration
+
 ```yaml
 # trading_alerts.yml
 groups:
@@ -1165,7 +1302,8 @@ groups:
 
 ### Logging Strategy
 
-#### 1. Structured Logging
+#### 1\. Structured Logging
+
 ```typescript
 // Centralized logging configuration
 import winston from 'winston';
@@ -1203,7 +1341,8 @@ logger.info('Order placed', {
 });
 ```
 
-#### 2. ELK Stack Integration
+#### 2\. ELK Stack Integration
+
 ```yaml
 # docker-compose.logging.yml
 version: '3.8'
@@ -1240,26 +1379,78 @@ volumes:
   elasticsearch_data:
 ```
 
----
+-----
+
+## Operational Modes
+
+This section explicitly defines the different operational modes of the application, enabled by separate executable entry points. This ensures clear operational boundaries and optimized resource management for each use case.
+
+### 1\. Live/Paper Trading Mode
+
+This mode is designed for continuous, real-time operation.
+
+  * **Entry Point**: `bun run start:live` (or similar command).
+  * **Active Components**: All core modules are active: Data Ingestion, Analysis Engine, Trading Engine (configured for live or paper), Strategy Manager, Risk Manager, Broker Manager, and the HTTP/WebSocket Server.
+  * **Purpose**: To execute strategies against live market data (either real or simulated for paper trading), manage positions, and provide real-time UI updates.
+  * **Characteristics**: Long-running process, requires continuous broker connectivity, active risk management.
+
+### 2\. Backtesting Mode
+
+This mode is designed for historical simulation and strategy optimization.
+
+  * **Entry Point**: `bun run start:backtest` (or similar command).
+  * **Active Components**: Primarily the historical data loader, Analysis Engine, Strategy Manager, and a simulated Trading Engine/Risk Manager (which interacts with historical data instead of live broker APIs). The HTTP/WebSocket server may or may not be active depending on how backtest results are retrieved (e.g., CLI output vs. dedicated API for UI).
+  * **Purpose**: To run strategies against historical data to evaluate performance, identify optimal parameters, and validate strategy logic without real-time market pressure or broker interaction.
+  * **Characteristics**: Typically a batch process, can be resource-intensive depending on the historical data range, does not require continuous broker connectivity.
+
+-----
+
+## Robustness & Fault Tolerance
+
+This section details mechanisms implemented to ensure the application's stability and ability to recover from failures, meeting the requirements for robustness and fault tolerance.
+
+### 1\. WebSocket Liveness Checks & Auto-Reconnection
+
+  * **Liveness Checks**: Implement regular heartbeat mechanisms or ping-pong frames over WebSocket connections to broker data feeds. If a response is not received within a defined timeout, the connection is considered stale.
+  * **Auto-Reconnection**: Upon detecting a disconnected or stale WebSocket, the system will automatically attempt to re-establish the connection. This includes:
+      * Exponential backoff strategy for retries to avoid overwhelming broker APIs.
+      * Logging of connection attempts and failures for monitoring.
+      * Prioritization of critical data feeds.
+
+### 2\. Crash Recovery Strategy for Trading Positions
+
+In the event of an unexpected application crash or restart, a defined recovery process ensures minimal impact on trading operations and data integrity:
+
+  * **Persistent Position State**: All open trading positions are persistently stored in the `positions` table in TimescaleDB. This includes `strategy_id`, `instrument_id`, `quantity`, `average_entry_price`, `stop_loss_price`, and `status`.
+  * **Startup Reconciliation**:
+      * On application restart, the **Trading Engine** and **Risk Manager** will query the database to retrieve all `OPEN` positions associated with currently enabled strategies.
+      * For each re-loaded position, the system will:
+          * Re-establish internal monitoring (e.g., stop-loss triggers).
+          * Reconcile the internal position state with the actual position held at the broker (via Broker Manager API calls). This step is crucial to detect any discrepancies that might have occurred during the crash.
+          * Re-subscribe to relevant market data streams for these instruments to ensure real-time updates for continued monitoring and execution.
+  * **Order Reconciliation**: Pending orders (if any) at the time of crash will also be queried from the database and their status verified with the broker to prevent duplicate orders or missed fills.
+
+-----
 
 ## Conclusion
 
-This technical architecture document provides a comprehensive foundation for building a high-performance, scalable, and reliable real-time trading application. The proposed monolithic architecture addresses all critical requirements including:
+This technical architecture document provides a comprehensive foundation for building a high-performance, scalable, and reliable real-time trading application. The proposed monolithic architecture, enhanced with explicit provisions for continuous operation, scheduled tasks, InversifyJS for dependency injection, decorator-based strategy registration, and robust fault tolerance mechanisms, addresses all critical requirements including:
 
-- **Sub-300ms execution latency** through Bun's optimized runtime, in-memory data structures, and zero-copy processing
-- **Support for 500+ instruments and 30-40 concurrent strategies** via efficient memory management and Bun worker threads
-- **Robust risk management** with real-time monitoring and automated controls in a single application context
-- **Broker-agnostic design** enabling integration with multiple trading platforms through modular broker adapters
-- **Comprehensive monitoring and observability** for production operations with minimal overhead
-- **Simplified deployment** with a single application container reducing operational complexity
-- **Maximum performance** through elimination of network overhead between services
+  - **Sub-300ms execution latency** through Bun's optimized runtime, in-memory data structures, and zero-copy processing.
+  - **Support for 500+ instruments and 30-40 concurrent strategies** via efficient memory management and an executor-based strategy model.
+  - **Robust risk management** with real-time monitoring and automated controls in a single application context.
+  - **Broker-agnostic design** enabling integration with multiple trading platforms through modular broker adapters and clear interfaces.
+  - **Comprehensive monitoring and observability** for production operations with minimal overhead.
+  - **Simplified deployment** with a single application container, now with separate entry points for operational isolation, reducing complexity and increasing control.
+  - **Maximum performance** through elimination of network overhead within the core logic.
+  - **Enhanced Reliability** through detailed crash recovery and connection management strategies.
 
 ### Next Steps
 
-1. **Phase 1**: Implement core data ingestion and storage components
-2. **Phase 2**: Develop analysis engine and basic strategy framework
-3. **Phase 3**: Build trading engine with risk management
-4. **Phase 4**: Create web UI and real-time monitoring
-5. **Phase 5**: Implement backtesting and optimization tools
+1.  **Phase 1**: Implement core data ingestion and storage components.
+2.  **Phase 2**: Develop analysis engine and basic strategy framework (integrating InversifyJS and decorators).
+3.  **Phase 3**: Build trading engine with enhanced risk management and paper trading capabilities.
+4.  **Phase 4**: Create web UI and real-time monitoring.
+5.  **Phase 5**: Implement backtesting and optimization tools.
 
 The architecture is designed to be implemented incrementally, allowing for early testing and validation while building toward the full feature set outlined in the PRD.
