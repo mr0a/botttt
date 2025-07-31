@@ -1,0 +1,41 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Validating commit message..."
+
+# Read the commit message
+commit_msg_file=$1
+commit_msg=$(cat $commit_msg_file)
+
+# Define the commit message pattern
+# Format: type(scope): description
+# Types: feat, fix, docs, style, refactor, test, chore
+# Scope is optional but recommended
+# Description should be lowercase and imperative mood
+pattern="^(feat|fix|docs|style|refactor|test|chore)(\(.+\))?: .{1,50}$"
+
+if [[ ! $commit_msg =~ $pattern ]]; then
+  echo "❌ Commit message does not follow the conventional commit format!"
+  echo ""
+  echo "Format: type(scope): description"
+  echo ""
+  echo "Valid types:"
+  echo "  feat:     A new feature"
+  echo "  fix:      A bug fix"
+  echo "  docs:     Documentation only changes"
+  echo "  style:    Changes that do not affect the meaning of the code"
+  echo "  refactor: A code change that neither fixes a bug nor adds a feature"
+  echo "  test:     Adding missing tests or correcting existing tests"
+  echo "  chore:    Changes to the build process or auxiliary tools"
+  echo ""
+  echo "Examples:"
+  echo "  feat(auth): add user login functionality"
+  echo "  fix(api): resolve timeout issue in data fetching"
+  echo "  docs: update installation instructions"
+  echo "  test(utils): add unit tests for helper functions"
+  echo ""
+  echo "Your commit message: '$commit_msg'"
+  exit 1
+fi
+
+echo "✅ Commit message format is valid!"
