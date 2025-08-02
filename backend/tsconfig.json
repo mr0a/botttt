@@ -7,7 +7,7 @@
     "allowImportingTsExtensions": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "allowJs": true,
+    "allowJs": false,
     "checkJs": false,
     "jsx": "preserve",
     "declaration": true,
@@ -30,13 +30,6 @@
     "verbatimModuleSyntax": true,
     "types": ["bun-types", "node"]
   },
-  "include": [
-    "./src/tests/**/*",
-    "./src/**/*",
-    "./db/**/*",
-    "./db/seeds/**/*",
-    "./scripts/**/*",
-    "./*.config.ts"
-  ],
+  "include": ["./src/**/*", "./db/**/*", "./scripts/**/*", "./config/*"],
   "exclude": ["node_modules", "dist", "docs"]
 }

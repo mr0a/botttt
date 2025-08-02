@@ -5,15 +5,15 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
-    "lint": "eslint . --ext .ts,.js --fix",
+    "lint": "eslint . --ext .ts,.js --fix -c config/eslint.config.js",
     "precommit": "lint-staged",
     "type-check": "tsc --noEmit",
-    "prettier": "prettier",
+    "prettier": "prettier --config config/prettierrc.json",
     "test": "NODE_ENV=test bun test",
     "test:watch": "NODE_ENV=test bun test --watch",
     "test:coverage": "NODE_ENV=test bun test --coverage",
     "test:integration": "NODE_ENV=test bun test --timeout 30000 src/tests/integration/",
-    "test:e2e": "NODE_ENV=test playwright test",
+    "test:e2e": "NODE_ENV=test playwright test --config config/playwright.config.js",
     "test:all": "NODE_ENV=test bun run test && NODE_ENV=test bun run test:integration && NODE_ENV=test bun run test:e2e",
     "migrate": "bun run db/migrate.ts",
     "prepare": "cd ../ && husky install"
@@ -40,8 +40,10 @@
   "private": true,
   "lint-staged": {
     "*.{ts,js}": [
-      "prettier --write",
-      "eslint --cache --fix",
+      "prettier --write --config config/prettierrc.json",
+      "eslint --cache --fix -c config/eslint.config.js"
+    ],
+    "*.{ts}": [
       "tsc --noEmit"
     ]
   }
