@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger.js';
+import { logger } from "../utils/logger.js";
 
 export interface DatabaseConfig {
   connectionString?: string;
@@ -16,7 +16,7 @@ export interface QueryResult<T = unknown> {
 }
 
 export interface HealthCheckResult {
-  status: 'healthy' | 'unhealthy';
+  status: "healthy" | "unhealthy";
   details: {
     connected: boolean;
     queryTime?: number;
@@ -27,7 +27,7 @@ export interface HealthCheckResult {
 export interface PgClient {
   query(
     sql: string,
-    params?: unknown[]
+    params?: unknown[],
   ): Promise<{ rows: unknown[]; rowCount: number }>;
   connect(): Promise<void>;
   end(): Promise<void>;
@@ -39,20 +39,20 @@ export class Database {
 
   constructor(config: DatabaseConfig = {}) {
     this.config = {
-      connectionString: process.env.DATABASE_URL ?? '',
-      host: process.env.DB_HOST ?? 'localhost',
-      port: parseInt(process.env.DB_PORT ?? '5432'),
-      database: process.env.DB_NAME ?? 'tradebot',
-      user: process.env.DB_USER ?? 'tradebot',
-      password: process.env.DB_PASSWORD ?? 'tradebot123',
-      ssl: process.env.DB_SSL === 'true',
+      connectionString: process.env.DATABASE_URL ?? "",
+      host: process.env.DB_HOST ?? "localhost",
+      port: parseInt(process.env.DB_PORT ?? "5432"),
+      database: process.env.DB_NAME ?? "tradebot",
+      user: process.env.DB_USER ?? "tradebot",
+      password: process.env.DB_PASSWORD ?? "tradebot123",
+      ssl: process.env.DB_SSL === "true",
       ...config,
     };
   }
 
   async connect(): Promise<void> {
     try {
-      const { Client } = await import('pg');
+      const { Client } = await import("pg");
 
       this.client = new Client({
         connectionString: this.config.connectionString,
@@ -67,21 +67,21 @@ export class Database {
       await this.client.connect();
 
       // Enable TimescaleDB extension
-      await this.client.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
+      await this.client.query("CREATE EXTENSION IF NOT EXISTS timescaledb");
 
-      logger.info('Connected to PostgreSQL with TimescaleDB');
+      logger.info("Connected to PostgreSQL with TimescaleDB");
     } catch (error) {
-      logger.error('Failed to connect to PostgreSQL:', error);
+      logger.error("Failed to connect to PostgreSQL:", error);
       throw error;
     }
   }
 
   async query<T = unknown>(
     sql: string,
-    params?: unknown[]
+    params?: unknown[],
   ): Promise<QueryResult<T>> {
     if (!this.client) {
-      throw new Error('Database not connected');
+      throw new Error("Database not connected");
     }
 
     try {
@@ -99,7 +99,7 @@ export class Database {
         rowCount: result.rowCount ?? 0,
       };
     } catch (error) {
-      logger.error('Query failed:', { sql, params, error });
+      logger.error("Query failed:", { sql, params, error });
       throw error;
     }
   }
@@ -107,18 +107,18 @@ export class Database {
   async healthCheck(): Promise<HealthCheckResult> {
     if (!this.client) {
       return {
-        status: 'unhealthy',
-        details: { connected: false, error: 'Not connected' },
+        status: "unhealthy",
+        details: { connected: false, error: "Not connected" },
       };
     }
 
     try {
       const start = performance.now();
-      await this.client.query('SELECT 1');
+      await this.client.query("SELECT 1");
       const queryTime = performance.now() - start;
 
       return {
-        status: 'healthy',
+        status: "healthy",
         details: {
           connected: true,
           queryTime,
@@ -126,10 +126,10 @@ export class Database {
       };
     } catch (error) {
       return {
-        status: 'unhealthy',
+        status: "unhealthy",
         details: {
           connected: false,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         },
       };
     }
@@ -139,38 +139,38 @@ export class Database {
     if (this.client) {
       await this.client.end();
       this.client = null;
-      logger.info('Database connection closed');
+      logger.info("Database connection closed");
     }
   }
 
   async transaction<T>(callback: (client: PgClient) => Promise<T>): Promise<T> {
     if (!this.client) {
-      throw new Error('Database not connected');
+      throw new Error("Database not connected");
     }
 
-    const { Client } = await import('pg');
-    const client = new Client({
-      connectionString: this.config.connectionString,
-      host: this.config.host,
-      port: this.config.port,
-      database: this.config.database,
-      user: this.config.user,
-      password: this.config.password,
-      ssl: this.config.ssl,
-    });
+    // const { Client } = await import('pg');
+    // const client = new Client({
+    //   connectionString: this.config.connectionString,
+    //   host: this.config.host,
+    //   port: this.config.port,
+    //   database: this.config.database,
+    //   user: this.config.user,
+    //   password: this.config.password,
+    //   ssl: this.config.ssl,
+    // });
 
-    await client.connect();
+    // await client.connect();
 
     try {
-      await client.query('BEGIN');
-      const result = await callback(client);
-      await client.query('COMMIT');
+      await this.client.query("BEGIN");
+      const result = await callback(this.client);
+      await this.client.query("COMMIT");
       return result;
     } catch (error) {
-      await client.query('ROLLBACK');
+      await this.client.query("ROLLBACK");
       throw error;
     } finally {
-      await client.end();
+      await this.client.end();
     }
   }
 }
