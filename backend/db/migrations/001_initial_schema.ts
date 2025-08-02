@@ -1,4 +1,4 @@
-import type { PgClient } from '../../src/lib/database';
+import type { PgClient } from "../../src/lib/database";
 
 export async function up(client: PgClient): Promise<void> {
   // Create markets table
@@ -78,9 +78,9 @@ export async function up(client: PgClient): Promise<void> {
 
 export async function down(client: PgClient): Promise<void> {
   // Drop tables in reverse order
-  await client.query('DROP TABLE IF EXISTS market_data');
-  await client.query('DROP TABLE IF EXISTS markets');
+  await client.query("DROP TABLE IF EXISTS market_data");
+  await client.query("DROP TABLE IF EXISTS markets");
 
   // Clean up trigger function
-  await client.query('DROP FUNCTION IF EXISTS update_updated_at_column()');
+  await client.query("DROP FUNCTION IF EXISTS update_updated_at_column()");
 }

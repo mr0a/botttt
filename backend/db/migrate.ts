@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { Database, type PgClient } from '../src/lib/database.js';
-import { logger } from '../src/utils/logger.js';
-import * as path from 'path';
-import * as fs from 'fs';
+import { Database, type PgClient } from "../src/lib/database.js";
+import { logger } from "../src/utils/logger.js";
+import * as path from "path";
+import * as fs from "fs";
 
 interface Migration {
   up: (client: PgClient) => Promise<void>;
@@ -37,16 +37,16 @@ export class MigrationRunner {
 
   async getAppliedMigrations(): Promise<string[]> {
     const result = await this.db.query<MigrationRecord>(
-      'SELECT name FROM migrations ORDER BY applied_at ASC'
+      "SELECT name FROM migrations ORDER BY applied_at ASC",
     );
     return result.rows.map(row => row.name);
   }
 
   async getPendingMigrations(): Promise<string[]> {
-    const migrationsDir = path.join(__dirname, 'migrations');
+    const migrationsDir = path.join(__dirname, "migrations");
     const files = fs
       .readdirSync(migrationsDir)
-      .filter(file => file.endsWith('.ts'))
+      .filter(file => file.endsWith(".ts"))
       .sort();
 
     const applied = await this.getAppliedMigrations();
@@ -55,34 +55,34 @@ export class MigrationRunner {
 
   isMigration(obj: unknown): obj is Migration {
     return (
-      typeof obj === 'object' &&
+      typeof obj === "object" &&
       obj !== null &&
-      typeof (obj as Migration).up === 'function' &&
-      typeof (obj as Migration).down === 'function'
+      typeof (obj as Migration).up === "function" &&
+      typeof (obj as Migration).down === "function"
     );
   }
 
   async runMigration(
     fileName: string,
-    direction: 'up' | 'down'
+    direction: "up" | "down",
   ): Promise<void> {
-    const migrationPath = path.join(__dirname, 'migrations', fileName);
+    const migrationPath = path.join(__dirname, "migrations", fileName);
     const module = (await import(migrationPath)) as unknown;
     if (!this.isMigration(module)) {
-      throw new Error('Invalid migration module');
+      throw new Error("Invalid migration module");
     }
     const migration = module;
     logger.info(`Running ${direction} migration: ${fileName}`);
 
     await this.db.transaction(async client => {
-      if (direction === 'up') {
+      if (direction === "up") {
         await migration.up(client);
-        await client.query('INSERT INTO migrations (name) VALUES ($1)', [
+        await client.query("INSERT INTO migrations (name) VALUES ($1)", [
           fileName,
         ]);
       } else {
         await migration.down(client);
-        await client.query('DELETE FROM migrations WHERE name = $1', [
+        await client.query("DELETE FROM migrations WHERE name = $1", [
           fileName,
         ]);
       }
@@ -97,17 +97,17 @@ export class MigrationRunner {
     const pending = await this.getPendingMigrations();
 
     if (pending.length === 0) {
-      logger.info('No pending migrations');
+      logger.info("No pending migrations");
       return;
     }
 
     logger.info(`Found ${pending.length} pending migrations`);
 
     for (const migration of pending) {
-      await this.runMigration(migration, 'up');
+      await this.runMigration(migration, "up");
     }
 
-    logger.info('All migrations completed');
+    logger.info("All migrations completed");
   }
 
   async rollback(steps: number = 1): Promise<void> {
@@ -117,17 +117,17 @@ export class MigrationRunner {
     const toRollback = applied.slice(-steps).reverse();
 
     if (toRollback.length === 0) {
-      logger.info('No migrations to rollback');
+      logger.info("No migrations to rollback");
       return;
     }
 
     logger.info(`Rolling back ${toRollback.length} migrations`);
 
     for (const migration of toRollback) {
-      await this.runMigration(migration, 'down');
+      await this.runMigration(migration, "down");
     }
 
-    logger.info('Rollback completed');
+    logger.info("Rollback completed");
   }
 
   async close(): Promise<void> {
@@ -140,37 +140,37 @@ async function main() {
   const runner = new MigrationRunner(db);
 
   try {
-    const command = process.argv[2] ?? 'migrate';
+    const command = process.argv[2] ?? "migrate";
 
     switch (command) {
-      case 'migrate':
+      case "migrate":
         await runner.migrate();
         break;
-      case 'rollback': {
-        const steps = parseInt(process.argv[3] ?? '1');
+      case "rollback": {
+        const steps = parseInt(process.argv[3] ?? "1");
         await runner.rollback(steps);
         break;
       }
-      case 'status': {
+      case "status": {
         await runner.init();
         const pending = await runner.getPendingMigrations();
         const applied = await runner.getAppliedMigrations();
 
-        console.log('Applied migrations:');
+        console.log("Applied migrations:");
         applied.forEach(name => console.log(`  ✓ ${name}`));
 
-        console.log('\nPending migrations:');
+        console.log("\nPending migrations:");
         pending.forEach(name => console.log(`  ○ ${name}`));
         break;
       }
       default:
         console.error(
-          'Usage: bun migrate.ts [migrate|rollback|status] [steps]'
+          "Usage: bun migrate.ts [migrate|rollback|status] [steps]",
         );
         process.exit(1);
     }
   } catch (error) {
-    logger.error('Migration failed:', error);
+    logger.error("Migration failed:", error);
     process.exit(1);
   } finally {
     await runner.close();
@@ -179,7 +179,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(error => {
-    console.error('Migration failed:', error);
+    console.error("Migration failed:", error);
     process.exit(1);
   });
 }
