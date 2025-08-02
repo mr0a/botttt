@@ -27,13 +27,10 @@ fi
 #   exit 1
 # fi
 
-echo "🧹 Running Prettier on staged files..."
-prettier $(git diff --cached --name-only --diff-filter=ACMR | sed 's| |\\ |g') --write --ignore-unknown
-
 # Run Backend precommit check
 echo "🧹 Running Backend Precommit check..."
 cd backend
-npm run lint:check && npm run type-check
+bun run precommit && bun run type-check
 if [ $? -ne 0 ]; then
   echo "❌ Backend precommit check failed. Please fix the issues before committing."
   exit 1
