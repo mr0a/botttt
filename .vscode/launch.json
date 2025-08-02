@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch via Bun",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeArgs": [
+        "run", // or "start", "dev", etc. depending on your script
+        "migrate" // Replace with the name of your script in package.json
+      ],
+      "runtimeExecutable": "bun",
+      "skipFiles": ["<node_internals>/**"],
+      "type": "node"
+    }
+  ]
+}
