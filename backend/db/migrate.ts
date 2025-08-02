@@ -15,11 +15,11 @@ interface MigrationRecord {
   applied_at: Date;
 }
 
-class MigrationRunner {
+export class MigrationRunner {
   private db: Database;
 
-  constructor() {
-    this.db = new Database();
+  constructor(database: Database) {
+    this.db = database;
   }
 
   async init(): Promise<void> {
@@ -136,7 +136,8 @@ class MigrationRunner {
 }
 
 async function main() {
-  const runner = new MigrationRunner();
+  const db = new Database();
+  const runner = new MigrationRunner(db);
 
   try {
     const command = process.argv[2] ?? 'migrate';
