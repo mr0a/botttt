@@ -11,7 +11,7 @@
     "prettier": "prettier",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "migrate": "bun run scripts/migrate.ts",
+    "migrate": "bun run db/migrate.ts",
     "prepare": "cd ../ && husky install"
   },
   "devDependencies": {

@@ -33,7 +33,7 @@
   "include": [
     "./src/tests/**/*",
     "./src/**/*",
-    "./db/migrations/**/*",
+    "./db/**/*",
     "./db/seeds/**/*",
     "./scripts/**/*"
   ],

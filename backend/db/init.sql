@@ -242,23 +242,33 @@ BEGIN
     END IF;
 END $$;
 
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs 
-        WHERE proc_name = 'policy_retention' 
-        AND hypertable_name = 'order_history'
-    ) THEN
-        PERFORM add_retention_policy('order_history', INTERVAL '5 years');
-    END IF;
-END $$;
+-- Note: order_history is a regular table, not a hypertable, so no retention policy needed
+
+-- Enable compression on hypertables
+ALTER TABLE tick_data SET (
+    timescaledb.compress,
+    timescaledb.compress_orderby = 'time DESC',
+    timescaledb.compress_segmentby = 'instrument_id'
+);
+
+ALTER TABLE ohlc_candles SET (
+    timescaledb.compress,
+    timescaledb.compress_orderby = 'time DESC',
+    timescaledb.compress_segmentby = 'instrument_id, timeframe'
+);
+
+ALTER TABLE order_book_snapshots SET (
+    timescaledb.compress,
+    timescaledb.compress_orderby = 'time DESC',
+    timescaledb.compress_segmentby = 'instrument_id'
+);
 
 -- Set up compression policies
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs 
-        WHERE proc_name = 'policy_compression' 
+        SELECT 1 FROM timescaledb_information.jobs
+        WHERE proc_name = 'policy_compression'
         AND hypertable_name = 'tick_data'
     ) THEN
         PERFORM add_compression_policy('tick_data', INTERVAL '7 days');
@@ -268,8 +278,8 @@ END $$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs 
-        WHERE proc_name = 'policy_compression' 
+        SELECT 1 FROM timescaledb_information.jobs
+        WHERE proc_name = 'policy_compression'
         AND hypertable_name = 'ohlc_candles'
     ) THEN
         PERFORM add_compression_policy('ohlc_candles', INTERVAL '30 days');
@@ -279,8 +289,8 @@ END $$;
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.jobs 
-        WHERE proc_name = 'policy_compression' 
+        SELECT 1 FROM timescaledb_information.jobs
+        WHERE proc_name = 'policy_compression'
         AND hypertable_name = 'order_book_snapshots'
     ) THEN
         PERFORM add_compression_policy('order_book_snapshots', INTERVAL '1 day');

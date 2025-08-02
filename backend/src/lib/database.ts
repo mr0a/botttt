@@ -1,60 +1,121 @@
-import { Database as BunDatabase } from 'bun:sqlite';
+import { logger } from '../utils/logger.js';
 
 export interface DatabaseConfig {
-  filename?: string;
+  connectionString?: string;
+  host?: string;
+  port?: number;
+  database?: string;
+  user?: string;
+  password?: string;
+  ssl?: boolean;
 }
 
-export interface QueryResult<T = Record<string, unknown>> {
+export interface QueryResult<T = unknown> {
   rows: T[];
   rowCount: number;
 }
 
+export interface HealthCheckResult {
+  status: 'healthy' | 'unhealthy';
+  details: {
+    connected: boolean;
+    queryTime?: number;
+    error?: string;
+  };
+}
+
+export interface PgClient {
+  query(
+    sql: string,
+    params?: unknown[]
+  ): Promise<{ rows: unknown[]; rowCount: number }>;
+  connect(): Promise<void>;
+  end(): Promise<void>;
+}
+
 export class Database {
-  private db: BunDatabase;
+  private client: PgClient | null = null;
+  private config: DatabaseConfig;
 
   constructor(config: DatabaseConfig = {}) {
-    this.db = new BunDatabase(config.filename ?? ':memory:');
-  }
-
-  connect(): void {
-    console.log('Database connected successfully');
-  }
-
-  query<T = Record<string, unknown>>(
-    sql: string,
-    params?: (string | number | boolean | null | Uint8Array)[]
-  ): QueryResult<T> {
-    try {
-      const stmt = this.db.prepare(sql);
-      const result = params ? stmt.all(...params) : stmt.all();
-      return { rows: result as T[], rowCount: result.length };
-    } catch (error) {
-      console.error('Database query failed:', { query: sql, error });
-      throw error;
-    }
-  }
-
-  exec(sql: string): void {
-    try {
-      this.db.exec(sql);
-    } catch (error) {
-      console.error('Database exec failed:', { query: sql, error });
-      throw error;
-    }
-  }
-
-  healthCheck(): {
-    status: 'healthy' | 'unhealthy';
-    details: {
-      connected: boolean;
-      queryTime: number;
-      error?: string;
+    this.config = {
+      connectionString: process.env.DATABASE_URL ?? '',
+      host: process.env.DB_HOST ?? 'localhost',
+      port: parseInt(process.env.DB_PORT ?? '5432'),
+      database: process.env.DB_NAME ?? 'tradebot',
+      user: process.env.DB_USER ?? 'tradebot',
+      password: process.env.DB_PASSWORD ?? 'tradebot123',
+      ssl: process.env.DB_SSL === 'true',
+      ...config,
     };
-  } {
-    const start = Date.now();
+  }
+
+  async connect(): Promise<void> {
     try {
-      this.db.prepare('SELECT 1').get();
-      const queryTime = Date.now() - start;
+      const { Client } = await import('pg');
+
+      this.client = new Client({
+        connectionString: this.config.connectionString,
+        host: this.config.host,
+        port: this.config.port,
+        database: this.config.database,
+        user: this.config.user,
+        password: this.config.password,
+        ssl: this.config.ssl,
+      });
+
+      await this.client.connect();
+
+      // Enable TimescaleDB extension
+      await this.client.query('CREATE EXTENSION IF NOT EXISTS timescaledb');
+
+      logger.info('Connected to PostgreSQL with TimescaleDB');
+    } catch (error) {
+      logger.error('Failed to connect to PostgreSQL:', error);
+      throw error;
+    }
+  }
+
+  async query<T = unknown>(
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult<T>> {
+    if (!this.client) {
+      throw new Error('Database not connected');
+    }
+
+    try {
+      const start = performance.now();
+      const result = await this.client.query(sql, params);
+      const queryTime = performance.now() - start;
+
+      logger.debug(`Query executed in ${queryTime.toFixed(2)}ms`, {
+        sql,
+        params,
+      });
+
+      return {
+        rows: result.rows as T[],
+        rowCount: result.rowCount ?? 0,
+      };
+    } catch (error) {
+      logger.error('Query failed:', { sql, params, error });
+      throw error;
+    }
+  }
+
+  async healthCheck(): Promise<HealthCheckResult> {
+    if (!this.client) {
+      return {
+        status: 'unhealthy',
+        details: { connected: false, error: 'Not connected' },
+      };
+    }
+
+    try {
+      const start = performance.now();
+      await this.client.query('SELECT 1');
+      const queryTime = performance.now() - start;
 
       return {
         status: 'healthy',
@@ -68,27 +129,48 @@ export class Database {
         status: 'unhealthy',
         details: {
           connected: false,
-          queryTime: Date.now() - start,
           error: error instanceof Error ? error.message : 'Unknown error',
         },
       };
     }
   }
 
-  close(): void {
-    if (this.db) {
-      this.db.close();
-      console.log('Database connection closed');
+  async close(): Promise<void> {
+    if (this.client) {
+      await this.client.end();
+      this.client = null;
+      logger.info('Database connection closed');
     }
   }
 
-  runMigration(migration: { up: (db: Database) => void }): void {
+  async transaction<T>(callback: (client: PgClient) => Promise<T>): Promise<T> {
+    if (!this.client) {
+      throw new Error('Database not connected');
+    }
+
+    const { Client } = await import('pg');
+    const client = new Client({
+      connectionString: this.config.connectionString,
+      host: this.config.host,
+      port: this.config.port,
+      database: this.config.database,
+      user: this.config.user,
+      password: this.config.password,
+      ssl: this.config.ssl,
+    });
+
+    await client.connect();
+
     try {
-      migration.up(this);
-      console.log('Migration completed successfully');
+      await client.query('BEGIN');
+      const result = await callback(client);
+      await client.query('COMMIT');
+      return result;
     } catch (error) {
-      console.error('Migration failed:', error);
+      await client.query('ROLLBACK');
       throw error;
+    } finally {
+      await client.end();
     }
   }
 }
