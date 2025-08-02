@@ -30,6 +30,12 @@
     "verbatimModuleSyntax": true,
     "types": ["bun-types"]
   },
-  "include": ["./src/tests/**/*", "./src/**/*"],
+  "include": [
+    "./src/tests/**/*",
+    "./src/**/*",
+    "./db/migrations/**/*",
+    "./db/seeds/**/*",
+    "./scripts/**/*"
+  ],
   "exclude": ["node_modules", "dist", "docs"]
 }
