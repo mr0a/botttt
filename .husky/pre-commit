@@ -30,7 +30,7 @@ fi
 # Run Backend precommit check
 echo "🧹 Running Backend Precommit check..."
 cd backend
-bun run precommit && bun run type-check
+bun run precommit
 if [ $? -ne 0 ]; then
   echo "❌ Backend precommit check failed. Please fix the issues before committing."
   exit 1

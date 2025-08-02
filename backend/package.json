@@ -36,7 +36,8 @@
   "lint-staged": {
     "*.{ts,js}": [
       "prettier --write",
-      "eslint --cache --fix"
+      "eslint --cache --fix",
+      "tsc --noEmit"
     ]
   }
 }
