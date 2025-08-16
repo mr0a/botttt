@@ -1,4 +1,4 @@
-import { logger } from "../utils/logger.js";
+import { logger } from "./logger";
 
 export interface DatabaseConfig {
   connectionString?: string;
@@ -69,9 +69,9 @@ export class Database {
       // Enable TimescaleDB extension
       await this.client.query("CREATE EXTENSION IF NOT EXISTS timescaledb");
 
-      logger.info("Connected to PostgreSQL with TimescaleDB");
+      logger.debug("Connected to PostgreSQL with TimescaleDB");
     } catch (error) {
-      logger.error("Failed to connect to PostgreSQL:", error);
+      logger.error(error, "Failed to connect to PostgreSQL:");
       throw error;
     }
   }
@@ -89,17 +89,20 @@ export class Database {
       const result = await this.client.query(sql, params);
       const queryTime = performance.now() - start;
 
-      logger.debug(`Query executed in ${queryTime.toFixed(2)}ms`, {
-        sql,
-        params,
-      });
+      logger.debug(
+        {
+          sql,
+          params,
+        },
+        `Query executed in ${queryTime.toFixed(2)}ms`,
+      );
 
       return {
         rows: result.rows as T[],
         rowCount: result.rowCount ?? 0,
       };
     } catch (error) {
-      logger.error("Query failed:", { sql, params, error });
+      logger.error({ sql, params, error }, "Query failed:");
       throw error;
     }
   }
@@ -139,7 +142,7 @@ export class Database {
     if (this.client) {
       await this.client.end();
       this.client = null;
-      logger.info("Database connection closed");
+      logger.debug("Database connection closed");
     }
   }
 
