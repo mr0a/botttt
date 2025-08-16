@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { Database, type PgClient } from "../src/lib/database.js";
-import { logger } from "../src/utils/logger.js";
+import { logger } from "../src/lib/logger";
 import * as path from "path";
 import * as fs from "fs";
 
@@ -39,18 +39,18 @@ export class MigrationRunner {
     const result = await this.db.query<MigrationRecord>(
       "SELECT name FROM migrations ORDER BY applied_at ASC",
     );
-    return result.rows.map(row => row.name);
+    return result.rows.map((row) => row.name);
   }
 
   async getPendingMigrations(): Promise<string[]> {
     const migrationsDir = path.join(__dirname, "migrations");
     const files = fs
       .readdirSync(migrationsDir)
-      .filter(file => file.endsWith(".ts"))
+      .filter((file) => file.endsWith(".ts"))
       .sort();
 
     const applied = await this.getAppliedMigrations();
-    return files.filter(file => !applied.includes(file));
+    return files.filter((file) => !applied.includes(file));
   }
 
   isMigration(obj: unknown): obj is Migration {
@@ -74,7 +74,7 @@ export class MigrationRunner {
     const migration = module;
     logger.info(`Running ${direction} migration: ${fileName}`);
 
-    await this.db.transaction(async client => {
+    await this.db.transaction(async (client) => {
       if (direction === "up") {
         await migration.up(client);
         await client.query("INSERT INTO migrations (name) VALUES ($1)", [
@@ -156,21 +156,19 @@ async function main() {
         const pending = await runner.getPendingMigrations();
         const applied = await runner.getAppliedMigrations();
 
-        console.log("Applied migrations:");
-        applied.forEach(name => console.log(`  ✓ ${name}`));
+        logger.info("Applied migrations:");
+        applied.forEach((name) => logger.info(`  ✓ ${name}`));
 
-        console.log("\nPending migrations:");
-        pending.forEach(name => console.log(`  ○ ${name}`));
+        logger.info("\nPending migrations:");
+        pending.forEach((name) => logger.info(`  ○ ${name}`));
         break;
       }
       default:
-        console.error(
-          "Usage: bun migrate.ts [migrate|rollback|status] [steps]",
-        );
+        logger.error("Usage: bun migrate.ts [migrate|rollback|status] [steps]");
         process.exit(1);
     }
   } catch (error) {
-    logger.error("Migration failed:", error);
+    logger.error(error, "Migration failed:");
     process.exit(1);
   } finally {
     await runner.close();
@@ -178,8 +176,8 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch(error => {
-    console.error("Migration failed:", error);
+  main().catch((error) => {
+    logger.error(error, "Migration failed");
     process.exit(1);
   });
 }
