@@ -1,63 +1,42 @@
-import { formatTimestamp } from "./lib/utils";
+import "reflect-metadata";
+import { container } from "./lib/container";
+import { TYPES } from "./lib/container/types";
+import { Application } from "./lib/application";
+import type { ILogger } from "./lib/logger";
 
-// Main entry point for the trading bot application
-console.log("Trade Bot starting...");
+// Get application instance from container
+const app = container.get<Application>(TYPES.Application);
+const logger = container.get<ILogger>(TYPES.Logger);
 
-const server = Bun.serve({
-  port: process.env.PORT ?? 3000,
-  fetch(request) {
-    const url = new URL(request.url);
+logger.info("Trade Bot starting...");
 
-    // Health check endpoint
-    if (url.pathname === "/health") {
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          timestamp: formatTimestamp(new Date()),
-          uptime: process.uptime(),
-          version: process.env.npm_package_version ?? "1.0.0",
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-          status: 200,
-        },
-      );
-    }
+// Start the application
+app.start();
 
-    // Root endpoint
-    if (url.pathname === "/") {
-      return new Response(
-        JSON.stringify({
-          message: "Trade Bot API",
-          version: "1.0.0",
-          status: "running",
-          endpoints: {
-            health: "/health",
-            api: "/api/v1",
-          },
-        }),
-        {
-          headers: { "Content-Type": "application/json" },
-          status: 200,
-        },
-      );
-    }
-
-    // 404 for unknown routes
-    return new Response(
-      JSON.stringify({
-        error: "Not Found",
-        message: "The requested endpoint does not exist",
-        path: url.pathname,
-      }),
-      {
-        headers: { "Content-Type": "application/json" },
-        status: 404,
-      },
-    );
-  },
+// Handle graceful shutdown
+process.on("SIGTERM", () => {
+  logger.info("Received SIGTERM, shutting down gracefully");
+  app.stop();
+  process.exit(0);
 });
 
-console.log(`Trade Bot API running on http://localhost:${server.port}`);
+process.on("SIGINT", () => {
+  logger.info("Received SIGINT, shutting down gracefully");
+  app.stop();
+  process.exit(0);
+});
 
-export default server;
+// Handle uncaught exceptions
+process.on("uncaughtException", (error, origin) => {
+  // log uncaught exceptions and try to fix
+  logger.error({ error, origin }, "Uncaught Exception");
+  app.stop();
+  // process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  // log unhandled rejections and try to fix
+  logger.error({ reason, promise }, "Unhandled Rejection");
+  app.stop();
+  // process.exit(1);
+});
