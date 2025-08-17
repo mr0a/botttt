@@ -20,8 +20,11 @@
   },
   "dependencies": {
     "@openobserve/pino-openobserve": "^1.0.0",
-    "@opentelemetry/api": "^1.9.0",
-    "pino": "^9.9.0"
+    "file-stream-rotator": "^1.0.0",
+    "inversify": "^7.8.1",
+    "pino": "^9.9.0",
+    "pino-pretty": "^13.1.1",
+    "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -33,12 +36,10 @@
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.3",
-    "file-stream-rotator": "^1.0.0",
-    "globals": "^16.3.0",
     "husky": "^8.0.3",
     "lint-staged": "^16.1.2",
-    "pino-pretty": "^13.1.1",
     "prettier": "^3.6.2",
+    "tsc-files": "^1.1.4",
     "typescript-eslint": "^8.38.0"
   },
   "peerDependencies": {
@@ -50,8 +51,8 @@
       "prettier --write --config config/prettierrc.json",
       "eslint --cache --fix -c config/eslint.config.js"
     ],
-    "*.{ts}": [
-      "tsc --noEmit --esModuleInterop"
+    "*.ts": [
+      "tsc-files --noEmit"
     ]
   }
 }
