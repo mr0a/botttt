@@ -28,8 +28,16 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "types": ["bun-types", "node"]
   },
-  "include": ["./src/**/*", "./db/**/*", "./scripts/**/*", "./config/*"],
+  "include": [
+    "./src/**/*",
+    "./db/**/*",
+    "./scripts/**/*",
+    "./config/*",
+    "tests"
+  ],
   "exclude": ["node_modules", "dist", "docs"]
 }

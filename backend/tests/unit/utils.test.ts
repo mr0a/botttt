@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { formatCurrency, calculateProfitLoss } from "../../lib/utils";
+import { formatCurrency, calculateProfitLoss } from "../../src/utils/utils";
 
 describe("Utils", () => {
   describe("formatCurrency", () => {

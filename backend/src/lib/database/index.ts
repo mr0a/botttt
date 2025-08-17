@@ -1,4 +1,4 @@
-import { logger } from "./logger";
+import { logger } from "../logger";
 
 export interface DatabaseConfig {
   connectionString?: string;
@@ -63,15 +63,15 @@ export class Database {
         password: this.config.password,
         ssl: this.config.ssl,
       });
-
       await this.client.connect();
-
-      // Enable TimescaleDB extension
-      await this.client.query("CREATE EXTENSION IF NOT EXISTS timescaledb");
-
-      logger.debug("Connected to PostgreSQL with TimescaleDB");
+      logger.debug(
+        `Connected to ${this.config.database} PostgreSQL as ${this.config.user}`,
+      );
     } catch (error) {
-      logger.error(error, "Failed to connect to PostgreSQL:");
+      logger.error(
+        error,
+        `Failed to connect to ${this.config.database} PostgreSQL as ${this.config.user}`,
+      );
       throw error;
     }
   }
@@ -81,6 +81,7 @@ export class Database {
     params?: unknown[],
   ): Promise<QueryResult<T>> {
     if (!this.client) {
+      logger.error("Database client is not connected");
       throw new Error("Database not connected");
     }
 
@@ -102,7 +103,7 @@ export class Database {
         rowCount: result.rowCount ?? 0,
       };
     } catch (error) {
-      logger.error({ sql, params, error }, "Query failed:");
+      logger.error({ sql, params, error }, "Query execution failed");
       throw error;
     }
   }
@@ -147,33 +148,30 @@ export class Database {
   }
 
   async transaction<T>(callback: (client: PgClient) => Promise<T>): Promise<T> {
-    if (!this.client) {
-      throw new Error("Database not connected");
-    }
+    // Transaction is performed using a separate client
+    const { Client } = await import("pg");
+    const client = new Client({
+      connectionString: this.config.connectionString,
+      host: this.config.host,
+      port: this.config.port,
+      database: this.config.database,
+      user: this.config.user,
+      password: this.config.password,
+      ssl: this.config.ssl,
+    });
 
-    // const { Client } = await import('pg');
-    // const client = new Client({
-    //   connectionString: this.config.connectionString,
-    //   host: this.config.host,
-    //   port: this.config.port,
-    //   database: this.config.database,
-    //   user: this.config.user,
-    //   password: this.config.password,
-    //   ssl: this.config.ssl,
-    // });
-
-    // await client.connect();
+    await client.connect();
 
     try {
-      await this.client.query("BEGIN");
-      const result = await callback(this.client);
-      await this.client.query("COMMIT");
+      await client.query("BEGIN");
+      const result = await callback(client);
+      await client.query("COMMIT");
       return result;
     } catch (error) {
-      await this.client.query("ROLLBACK");
+      await client.query("ROLLBACK");
       throw error;
     } finally {
-      await this.client.end();
+      await client.end();
     }
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach, afterEach } from "bun:test";
-import { Database } from "../lib/database.js";
-import { MigrationRunner } from "../../db/migrate.js";
+import { Database } from "../src/lib/database";
+import { MigrationRunner } from "../db/migrate";
 
 describe("Database", () => {
   let db: Database;

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
-import { Database } from "../../lib/database";
+import { Database } from "../../src/lib/database";
 
 describe("Database Integration", () => {
   let db: Database;

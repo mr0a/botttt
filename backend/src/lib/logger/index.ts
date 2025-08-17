@@ -42,15 +42,15 @@ const errorLogStream = rotatingLogStream({
 }) as NodeJS.WritableStream;
 
 const openObserveTransport = new OpenobserveTransport({
-  url: "http://localhost:5080",
+  url: process.env.OPENOBSERVE_URL ?? "http://localhost:5080",
   auth: {
-    username: "root@example.com",
-    password: "2CoxuydK5f1qwQsw",
+    username: process.env.OPENOBSERVE_USERNAME ?? "root@example.com",
+    password: process.env.OPENOBSERVE_PASSWORD ?? "2CoxuydK5f1qwQsw",
   },
-  streamName: "trade-bot-logs",
-  organization: "default",
-  batchSize: 1,
-  timeThreshold: 1,
+  streamName: process.env.OPENOBSERVE_STREAM_NAME ?? "trade-bot-logs",
+  organization: process.env.OPENOBSERVE_ORGANIZATION ?? "default",
+  batchSize: 50,
+  timeThreshold: 5000,
   silentSuccess: true,
 });
 
@@ -66,3 +66,6 @@ export const logger = pino(
     { stream: openObserveTransport, level: "debug" }, // OpenObserve transport
   ]),
 );
+
+// Export types
+export type { ILogger } from "./types";
