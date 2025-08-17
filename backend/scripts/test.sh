@@ -11,11 +11,11 @@ echo "Using test environment: NODE_ENV=test"
 
 # Run unit tests
 echo "📋 Running Unit Tests..."
-NODE_ENV=test bun test src/tests/unit/
+NODE_ENV=test bun test tests/unit/
 
 # Run integration tests
 echo "🔗 Running Integration Tests..."
-NODE_ENV=test bun test src/tests/integration/
+NODE_ENV=test bun test tests/integration/
 
 # Run E2E tests if Playwright is available
 if command -v playwright &> /dev/null; then

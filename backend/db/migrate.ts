@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Database, type PgClient } from "../src/lib/database.js";
+import { Database, type PgClient } from "../src/lib/database";
 import { logger } from "../src/lib/logger";
 import * as path from "path";
 import * as fs from "fs";
