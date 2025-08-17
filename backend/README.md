@@ -7,11 +7,13 @@ This backend uses Bun's built-in SQLite database for development and testing.
 ### Quick Start
 
 1. Install dependencies:
+
    ```bash
    bun install
    ```
 
 2. Run migrations:
+
    ```bash
    bun run migrate
    ```

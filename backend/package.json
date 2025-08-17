@@ -2,6 +2,8 @@
   "name": "trade-bot",
   "module": "src/index.ts",
   "type": "module",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
     "dev": "bun --watch src/index.ts",
@@ -45,7 +47,6 @@
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
-  "private": true,
   "lint-staged": {
     "*.{ts,js}": [
       "prettier --write --config config/prettierrc.json",
