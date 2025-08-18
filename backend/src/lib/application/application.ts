@@ -24,23 +24,10 @@ export class Application {
     try {
       this.logger.info("Starting application...");
 
-      // Initialize logging
-      this.logger.debug(
-        {
-          status: "starting",
-          uptime: 0,
-          timestamp: new Date().toISOString(),
-        },
-        "Application starting",
-      );
-
-      // Start the server
       this.server.start();
-
-      this.isRunning = true;
-
-      this.logger.info("Application started successfully");
       throw new Error("Application start method is not implemented yet");
+      this.isRunning = true;
+      this.logger.info("Application started successfully");
     } catch (error) {
       this.logger.error(error, "Failed to start application");
       throw error;
@@ -56,11 +43,8 @@ export class Application {
     try {
       this.logger.info("Stopping application...");
 
-      // Stop the server
       this.server.stop();
-
       this.isRunning = false;
-
       this.logger.info("Application stopped successfully");
     } catch (error) {
       this.logger.error(
@@ -73,7 +57,6 @@ export class Application {
 
   restart(): void {
     this.logger.info("Restarting application...");
-
     try {
       this.stop();
       this.start();
