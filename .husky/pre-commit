@@ -1,0 +1,55 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Check branch naming convention
+branch_name=$(git rev-parse --abbrev-ref HEAD)
+valid_pattern="^(feature|bugfix|hotfix|release)\/[a-z0-9-]+$|^(main|develop)$"
+
+if [[ ! $branch_name =~ $valid_pattern ]]; then
+  echo "❌ Branch name '$branch_name' does not follow naming convention!"
+  echo "Valid patterns:"
+  echo "  - feature/description-here"
+  echo "  - bugfix/description-here" 
+  echo "  - hotfix/description-here"
+  echo "  - release/version-number"
+  echo "  - main"
+  echo "  - develop"
+  exit 1
+fi
+
+# Run Frontend precommit check
+# echo "🧹 Running Frontend Precommit check..."
+# . "frontend/.husky/pre-commit"
+# if [ $? -ne 0 ]; then
+#   echo "❌ Frontend precommit check failed. Please fix the issues before committing."
+#   exit 1
+# fi
+
+# Run Backend precommit check
+echo "🧹 Running Backend Precommit check..."
+cd backend
+bun run precommit
+if [ $? -ne 0 ]; then
+  echo "❌ Backend precommit check failed. Please fix the issues before committing."
+  exit 1
+fi
+
+# # Run type checking
+# echo "🔍 Running TypeScript type checking..."
+# bun run type-check
+# if [ $? -ne 0 ]; then
+#   echo "❌ Type checking failed. Please fix the issues before committing."
+#   exit 1
+# fi
+
+# # Run tests
+# echo "🧪 Running tests..."
+# bun run test
+# if [ $? -ne 0 ]; then
+#   echo "❌ Tests failed. Please fix the issues before committing."
+#   exit 1
+# fi
+
+echo "✅ All pre-commit checks passed!"

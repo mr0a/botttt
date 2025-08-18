@@ -1,0 +1,59 @@
+{
+  "name": "trade-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "lint": "eslint . --ext .ts,.js --fix -c config/eslint.config.js",
+    "precommit": "lint-staged",
+    "type-check": "tsc --noEmit",
+    "prettier": "prettier --check --config config/prettierrc.json .",
+    "test": "NODE_ENV=test bun test",
+    "test:watch": "NODE_ENV=test bun test --watch",
+    "test:coverage": "NODE_ENV=test bun test --coverage",
+    "test:integration": "NODE_ENV=test bun test --timeout 30000 src/tests/integration/",
+    "test:e2e": "NODE_ENV=test playwright test --config config/playwright.config.js",
+    "test:all": "NODE_ENV=test bun run test && NODE_ENV=test bun run test:integration && NODE_ENV=test bun run test:e2e",
+    "migrate": "bun run db/migrate.ts",
+    "prepare": "cd ../ && husky install"
+  },
+  "dependencies": {
+    "@openobserve/pino-openobserve": "^1.0.0",
+    "file-stream-rotator": "^1.0.0",
+    "inversify": "^7.8.1",
+    "pino": "^9.9.0",
+    "pino-pretty": "^13.1.1",
+    "reflect-metadata": "^0.2.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@eslint/json": "^0.13.1",
+    "@playwright/test": "^1.54.2",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "bun-types": "^1.2.19",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^16.1.2",
+    "prettier": "^3.6.2",
+    "tsc-files": "^1.1.4",
+    "typescript-eslint": "^8.38.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "prettier --write --config config/prettierrc.json",
+      "eslint --cache --fix -c config/eslint.config.js"
+    ],
+    "*.ts": [
+      "tsc-files --noEmit"
+    ]
+  }
+}
