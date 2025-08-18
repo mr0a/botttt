@@ -10,9 +10,9 @@ interface Migration {
 }
 
 interface MigrationRecord {
-  id: number;
-  name: string;
-  applied_at: Date;
+  version: string;
+  description: string;
+  executed_at: Date;
 }
 
 export class MigrationRunner {
@@ -25,28 +25,28 @@ export class MigrationRunner {
   async init(): Promise<void> {
     await this.db.connect();
 
-    // Create migrations table if it doesn't exist
+    // Ensure schema_migrations table exists (should already be created by init.sql)
     await this.db.query(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        version VARCHAR(50) PRIMARY KEY,
+        description TEXT,
+        executed_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
   }
 
   async getAppliedMigrations(): Promise<string[]> {
     const result = await this.db.query<MigrationRecord>(
-      "SELECT name FROM migrations ORDER BY applied_at ASC",
+      "SELECT version FROM schema_migrations ORDER BY executed_at ASC",
     );
-    return result.rows.map((row) => row.name);
+    return result.rows.map((row) => row.version);
   }
 
   async getPendingMigrations(): Promise<string[]> {
     const migrationsDir = path.join(__dirname, "migrations");
     const files = fs
       .readdirSync(migrationsDir)
-      .filter((file) => file.endsWith(".ts"))
+      .filter((file) => file.endsWith(".ts") && !file.includes("README"))
       .sort();
 
     const applied = await this.getAppliedMigrations();
@@ -72,23 +72,42 @@ export class MigrationRunner {
       throw new Error("Invalid migration module");
     }
     const migration = module;
+
+    // Extract description from filename
+    const description = this.getDescriptionFromFilename(fileName);
+
     logger.info(`Running ${direction} migration: ${fileName}`);
 
     await this.db.transaction(async (client) => {
       if (direction === "up") {
         await migration.up(client);
-        await client.query("INSERT INTO migrations (name) VALUES ($1)", [
-          fileName,
-        ]);
+        await client.query(
+          "INSERT INTO schema_migrations (version, description) VALUES ($1, $2)",
+          [fileName, description],
+        );
       } else {
         await migration.down(client);
-        await client.query("DELETE FROM migrations WHERE name = $1", [
+        await client.query("DELETE FROM schema_migrations WHERE version = $1", [
           fileName,
         ]);
       }
     });
 
     logger.info(`Completed ${direction} migration: ${fileName}`);
+  }
+
+  private getDescriptionFromFilename(fileName: string): string {
+    // Convert "001_create_initial_schema.ts" to "Create initial schema"
+    const baseName = fileName.replace(".ts", "");
+    const parts = baseName.split("_");
+    if (parts.length > 1) {
+      // Remove the number prefix and join the rest
+      const descriptionParts = parts.slice(1);
+      return descriptionParts
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ");
+    }
+    return baseName;
   }
 
   async migrate(): Promise<void> {
@@ -103,8 +122,8 @@ export class MigrationRunner {
 
     logger.info(`Found ${pending.length} pending migrations`);
 
-    for (const migration of pending) {
-      await this.runMigration(migration, "up");
+    for (const fileName of pending) {
+      await this.runMigration(fileName, "up");
     }
 
     logger.info("All migrations completed");
@@ -123,11 +142,22 @@ export class MigrationRunner {
 
     logger.info(`Rolling back ${toRollback.length} migrations`);
 
-    for (const migration of toRollback) {
-      await this.runMigration(migration, "down");
+    for (const fileName of toRollback) {
+      await this.runMigration(fileName, "down");
     }
 
     logger.info("Rollback completed");
+  }
+
+  async reset(): Promise<void> {
+    await this.db.transaction(async (client) => {
+      await client.query("DROP SCHEMA IF EXISTS tradebot CASCADE");
+
+      await client.query("CREATE EXTENSION IF NOT EXISTS timescaledb;");
+      await client.query("CREATE SCHEMA IF NOT EXISTS tradebot");
+      await client.query("SET search_path TO tradebot");
+      logger.info("Database reset completed");
+    });
   }
 
   async close(): Promise<void> {
@@ -156,22 +186,42 @@ async function main() {
         const pending = await runner.getPendingMigrations();
         const applied = await runner.getAppliedMigrations();
 
-        logger.info("Applied migrations:");
-        applied.forEach((name) => logger.info(`  ✓ ${name}`));
+        if (applied.length > 0) {
+          logger.info("Applied migrations:");
+          applied.forEach((fileName) => logger.info(`  ✓ ${fileName}`));
+        } else {
+          logger.info("No applied migrations");
+        }
 
-        logger.info("\nPending migrations:");
-        pending.forEach((name) => logger.info(`  ○ ${name}`));
+        if (pending.length > 0) {
+          logger.warn("Pending migrations:");
+          pending.forEach((fileName) => logger.info(`  ○ ${fileName}`));
+        } else {
+          logger.info("No pending migrations");
+        }
+
+        break;
+      }
+      case "reset": {
+        await runner.reset();
         break;
       }
       default:
-        logger.error("Usage: bun migrate.ts [migrate|rollback|status] [steps]");
+        logger.error(
+          "Usage: bun migrate.ts [migrate|rollback|status|reset] [steps]",
+        );
         process.exit(1);
     }
   } catch (error) {
-    logger.error(error, "Migration failed:");
+    if (error instanceof Error) {
+      logger.error(error, `Migration failed: ${error.message}`);
+    } else {
+      logger.error(error, "Migration failed");
+    }
     process.exit(1);
   } finally {
     await runner.close();
+    process.exit(0);
   }
 }
 

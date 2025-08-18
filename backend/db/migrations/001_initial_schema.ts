@@ -1,86 +1,76 @@
 import type { PgClient } from "../../src/lib/database";
 
+export const version = "1.0.0";
+export const description = "Initial schema setup for tradebot";
+
 export async function up(client: PgClient): Promise<void> {
-  // Create markets table
+  // Create instruments table
   await client.query(`
-    CREATE TABLE IF NOT EXISTS markets (
+    CREATE TABLE IF NOT EXISTS instruments (
       id SERIAL PRIMARY KEY,
-      symbol VARCHAR(20) NOT NULL UNIQUE,
-      base_asset VARCHAR(10) NOT NULL,
-      quote_asset VARCHAR(10) NOT NULL,
-      exchange VARCHAR(50) NOT NULL,
-      market_type VARCHAR(20) NOT NULL DEFAULT 'spot',
-      min_order_size DECIMAL(20, 8) NOT NULL DEFAULT 0.00000001,
-      max_order_size DECIMAL(20, 8) NOT NULL DEFAULT 1000000,
-      tick_size DECIMAL(20, 8) NOT NULL DEFAULT 0.00000001,
-      step_size DECIMAL(20, 8) NOT NULL DEFAULT 0.00000001,
-      is_active BOOLEAN NOT NULL DEFAULT true,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      symbol VARCHAR(50) NOT NULL UNIQUE,
+      exchange VARCHAR(20) NOT NULL,
+      instrument_type VARCHAR(20) NOT NULL,
+      tick_size DECIMAL(10,4),
+      lot_size INTEGER,
+      expiry_date DATE,
+      strike_price DECIMAL(10,2),
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  // Create market_data hypertable for time-series data
+  // Create tick data table (will be converted to hypertable in later migration)
   await client.query(`
-    CREATE TABLE IF NOT EXISTS market_data (
-      id SERIAL,
-      market_id INTEGER NOT NULL REFERENCES markets(id) ON DELETE CASCADE,
-      timestamp TIMESTAMPTZ NOT NULL,
-      open DECIMAL(20, 8) NOT NULL,
-      high DECIMAL(20, 8) NOT NULL,
-      low DECIMAL(20, 8) NOT NULL,
-      close DECIMAL(20, 8) NOT NULL,
-      volume DECIMAL(20, 8) NOT NULL,
-      quote_volume DECIMAL(20, 8) NOT NULL,
-      bid DECIMAL(20, 8),
-      ask DECIMAL(20, 8),
-      bid_volume DECIMAL(20, 8),
-      ask_volume DECIMAL(20, 8),
-      trades INTEGER,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    CREATE TABLE IF NOT EXISTS tick_data (
+      time TIMESTAMPTZ NOT NULL,
+      instrument_id INTEGER NOT NULL REFERENCES instruments(id),
+      price DECIMAL(12,4) NOT NULL,
+      quantity INTEGER NOT NULL,
+      trade_id VARCHAR(50),
+      exchange VARCHAR(20) NOT NULL,
+      CONSTRAINT tick_data_pkey PRIMARY KEY (time, instrument_id)
     )
   `);
 
-  // Convert market_data to hypertable for time-series optimization
+  // Create OHLC candles table (will be converted to hypertable in later migration)
   await client.query(`
-    SELECT create_hypertable('market_data', 'timestamp', if_not_exists => true)
+    CREATE TABLE IF NOT EXISTS ohlc_candles (
+      time TIMESTAMPTZ NOT NULL,
+      instrument_id INTEGER NOT NULL REFERENCES instruments(id),
+      timeframe VARCHAR(10) NOT NULL,
+      open_price DECIMAL(12,4) NOT NULL,
+      high_price DECIMAL(12,4) NOT NULL,
+      low_price DECIMAL(12,4) NOT NULL,
+      close_price DECIMAL(12,4) NOT NULL,
+      volume BIGINT NOT NULL,
+      trade_count INTEGER,
+      vwap DECIMAL(12,4),
+      CONSTRAINT ohlc_candles_pkey PRIMARY KEY (time, instrument_id, timeframe)
+    )
   `);
 
-  // Create indexes for performance
+  // Create order book snapshots table (will be converted to hypertable in later migration)
   await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_market_data_market_timestamp 
-    ON market_data (market_id, timestamp DESC)
-  `);
-
-  await client.query(`
-    CREATE INDEX IF NOT EXISTS idx_market_data_timestamp 
-    ON market_data (timestamp DESC)
-  `);
-
-  // Create updated_at trigger for markets table
-  await client.query(`
-    CREATE OR REPLACE FUNCTION update_updated_at_column()
-    RETURNS TRIGGER AS $$
-    BEGIN
-      NEW.updated_at = NOW();
-      RETURN NEW;
-    END;
-    $$ language 'plpgsql'
-  `);
-
-  await client.query(`
-    CREATE OR REPLACE TRIGGER update_markets_updated_at
-    BEFORE UPDATE ON markets
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column()
+    CREATE TABLE IF NOT EXISTS order_book_snapshots (
+      time TIMESTAMPTZ NOT NULL,
+      instrument_id INTEGER NOT NULL REFERENCES instruments(id),
+      bid_prices DECIMAL(12,4)[] NOT NULL,
+      bid_quantities INTEGER[] NOT NULL,
+      ask_prices DECIMAL(12,4)[] NOT NULL,
+      ask_quantities INTEGER[] NOT NULL,
+      total_bid_quantity BIGINT,
+      total_ask_quantity BIGINT,
+      CONSTRAINT order_book_pkey PRIMARY KEY (time, instrument_id)
+    )
   `);
 }
 
 export async function down(client: PgClient): Promise<void> {
   // Drop tables in reverse order
-  await client.query("DROP TABLE IF EXISTS market_data");
-  await client.query("DROP TABLE IF EXISTS markets");
-
-  // Clean up trigger function
-  await client.query("DROP FUNCTION IF EXISTS update_updated_at_column()");
+  await client.query("DROP TABLE IF EXISTS order_book_snapshots");
+  await client.query("DROP TABLE IF EXISTS ohlc_candles");
+  await client.query("DROP TABLE IF EXISTS tick_data");
+  await client.query("DROP TABLE IF EXISTS instruments");
 }
