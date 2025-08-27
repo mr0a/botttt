@@ -30,7 +30,10 @@
     "verbatimModuleSyntax": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "types": ["bun-types", "node"]
+    "types": ["bun-types", "node"],
+    "paths": {
+      "@src/*": ["./src/*"]
+    }
   },
   "include": [
     "./src/**/*",

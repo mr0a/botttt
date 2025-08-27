@@ -1,42 +1,48 @@
 import "reflect-metadata";
-import { container } from "./lib/container";
-import { TYPES } from "./lib/container/types";
-import { Application } from "./lib/application";
-import type { ILogger } from "./lib/logger";
+import { BacktestApplication, LiveApplication } from "./main";
+import { ContainerSetup } from "@src/lib/container/container";
+import { logger } from "@src/lib/logger";
 
-// Get application instance from container
-const app = container.get<Application>(TYPES.Application);
-const logger = container.get<ILogger>(TYPES.Logger);
+export class AppBootstrap {
+  static async start(): Promise<void> {
+    const config = this.getConfig();
 
-logger.info("Trade Bot starting...");
+    switch (config.mode) {
+      case "LIVE":
+      case "PAPER": {
+        const container = ContainerSetup.createContainer(config.mode);
+        const liveApp = container.get<LiveApplication>("LiveApplication");
+        liveApp.initialise(config.mode);
+        break;
+      }
 
-// Start the application
-app.start();
+      case "BACKTEST": {
+        const backtestApp = new BacktestApplication();
+        await backtestApp.initialize(config.accountId);
+        break;
+      }
 
-// Handle graceful shutdown
-process.on("SIGTERM", () => {
-  logger.info("Received SIGTERM, shutting down gracefully");
-  app.stop();
-  process.exit(0);
+      default:
+        throw new Error(`Unknown application mode: ${config.mode as string}`);
+    }
+  }
+
+  private static getConfig(): AppConfig {
+    return {
+      mode: (process.env.APP_MODE as ApplicationMode) || "PAPER",
+      accountId: process.env.ACCOUNT_ID ?? "PAPER",
+    };
+  }
+}
+
+AppBootstrap.start().catch((error: unknown) => {
+  logger.error(error, "Error starting application");
 });
 
-process.on("SIGINT", () => {
-  logger.info("Received SIGINT, shutting down gracefully");
-  app.stop();
-  process.exit(0);
+process.addListener("unhandledRejection", (error) => {
+  logger.error(error, "Unhandled promise rejection");
 });
 
-// Handle uncaught exceptions
-process.on("uncaughtException", (error, origin) => {
-  // log uncaught exceptions and try to fix
-  logger.error({ error, origin }, "Uncaught Exception");
-  app.stop();
-  // process.exit(1);
-});
-
-process.on("unhandledRejection", (reason, promise) => {
-  // log unhandled rejections and try to fix
-  logger.error({ reason, promise }, "Unhandled Rejection");
-  app.stop();
-  // process.exit(1);
+process.addListener("uncaughtException", (error) => {
+  logger.error(error, "Uncaught exception");
 });

@@ -1,6 +1,6 @@
 import { injectable, inject } from "inversify";
-import { TYPES } from "../container/types";
-import type { ILogger } from "../logger";
+import { TYPES } from "@src/lib/container/types";
+import type { ILogger } from "../../lib/logger";
 
 @injectable()
 export class Server {

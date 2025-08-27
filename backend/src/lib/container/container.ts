@@ -1,19 +1,48 @@
 import { Container } from "inversify";
 import { TYPES } from "./types";
-import { Server } from "../server";
-import { Application } from "../application";
+import { Server } from "@src/services/server";
 import { logger } from "../logger";
+// import { LiveApplication } from "../../main";
+import { FlattradeBroker } from "@src/lib/brokers/flattrade";
+import type { IBrokerService } from "../../interfaces/broker.interface";
+// import { StrategyManager } from "../strategy/strategy-manager";
+import { type BrokerFactory, BrokerFactoryImpl } from "./broker-factory";
+import { LiveApplication } from "@src/main/live-app";
 
-export const container = new Container();
+// export const container = new Container();
+export class ContainerSetup {
+  static createContainer(mode: ApplicationMode): Container {
+    const container = new Container();
 
-// Bind logger as a constant value since it's already configured
-container.bind(TYPES.Logger).toConstantValue(logger);
+    // Bind logger as a constant value since it's already configured
+    container.bind(TYPES.Logger).toConstantValue(logger);
 
-// Bind server
-container.bind<Server>(TYPES.Server).to(Server).inSingletonScope();
+    // Bind server
+    container.bind<Server>(TYPES.Server).to(Server).inSingletonScope();
 
-// Bind application
-container
-  .bind<Application>(TYPES.Application)
-  .to(Application)
-  .inSingletonScope();
+    // Register broker implementations
+    container.bind<IBrokerService>("FlattradeBroker").to(FlattradeBroker);
+    // container.bind<IBrokerService>("AliceBlueBroker").to(AliceBlueBroker);
+    // container.bind<IBrokerService>("PaperTradingBroker").to(PaperTradingBroker);
+
+    // Register factory
+    container.bind<BrokerFactory>("BrokerFactory").to(BrokerFactoryImpl);
+    container.bind<Container>("Container").toConstantValue(container);
+
+    // Register mode-specific services
+    if (mode === "BACKTEST") {
+      //   container.bind<IDataProvider>("DataProvider").to(HistoricalDataProvider);
+    } else {
+      //   container.bind<IDataProvider>("DataProvider").to(RealTimeDataProvider);
+    }
+
+    container.bind<LiveApplication>("LiveApplication").to(LiveApplication);
+
+    // // Register core services
+    // container.bind<ITradingEngine>("TradingEngine").to(TradingEngine);
+    // container.bind<IRiskManager>("RiskManager").to(RiskManager);
+    // container.bind<IStrategyManager>("StrategyManager").to(StrategyManager);
+
+    return container;
+  }
+}

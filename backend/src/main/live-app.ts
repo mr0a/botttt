@@ -1,10 +1,10 @@
 import { injectable, inject } from "inversify";
-import { Server } from "../server";
-import { TYPES } from "../container/types";
-import type { ILogger } from "../logger/types";
+import { Server } from "../services/server";
+import { TYPES } from "../lib/container/types";
+import type { ILogger } from "../lib/logger/types";
 
 @injectable()
-export class Application {
+export class LiveApplication {
   private isRunning = false;
   private server: Server;
 
@@ -13,6 +13,11 @@ export class Application {
     @inject(TYPES.Logger) private logger: ILogger,
   ) {
     this.server = server;
+  }
+
+  initialise(mode: ApplicationMode): void {
+    this.logger.info({ mode }, "Initialising application...");
+    this.logger.info("Application initialised successfully");
   }
 
   start(): void {
