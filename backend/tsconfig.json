@@ -40,7 +40,8 @@
     "./db/**/*",
     "./scripts/**/*",
     "./config/*",
-    "tests"
+    "tests",
+    "*.config.ts"
   ],
   "exclude": ["node_modules", "dist", "docs"]
 }

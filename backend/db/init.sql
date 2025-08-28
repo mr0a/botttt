@@ -3,10 +3,10 @@
 -- Contains only basic database setup - all schema changes are handled by migrations
 
 -- Enable TimescaleDB extension
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+-- CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 -- Create main schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS tradebot;
+-- CREATE SCHEMA IF NOT EXISTS tradebot;
 
 -- Set search path to include our schema
-SET search_path TO tradebot, public;
+-- SET search_path TO tradebot, public;
