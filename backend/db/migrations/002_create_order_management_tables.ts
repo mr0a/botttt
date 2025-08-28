@@ -4,13 +4,21 @@ export const version = "2.0.0";
 export const description = "Create order management tables";
 
 export async function up(client: PgClient): Promise<void> {
-  // Create orders table
+  // Create transaction type
   await client.query(`
-    CREATE TABLE IF NOT EXISTS orders (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    CREATE TYPE transaction_type AS ENUM (
+      'BUY',
+      'SELL'
+    );
+  `);
+
+  // Create order table
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS instrument_order (
+      order_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       strategy_id VARCHAR(100) NOT NULL,
-      instrument_id INTEGER NOT NULL REFERENCES instruments(id),
-      order_type VARCHAR(20) NOT NULL,
+      instrument_id INTEGER NOT NULL REFERENCES instrument(instrument_id),
+      transaction_type transaction_type NOT NULL,
       quantity INTEGER NOT NULL,
       price DECIMAL(12,4),
       order_kind VARCHAR(20) NOT NULL,
@@ -28,8 +36,8 @@ export async function up(client: PgClient): Promise<void> {
   // Create order history table
   await client.query(`
     CREATE TABLE IF NOT EXISTS order_history (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      order_id UUID NOT NULL REFERENCES orders(id),
+      order_history_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      order_id UUID NOT NULL REFERENCES instrument_order(order_id),
       status VARCHAR(20) NOT NULL,
       timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       details JSONB
@@ -40,5 +48,6 @@ export async function up(client: PgClient): Promise<void> {
 export async function down(client: PgClient): Promise<void> {
   // Drop tables in reverse order
   await client.query("DROP TABLE IF EXISTS order_history");
-  await client.query("DROP TABLE IF EXISTS orders");
+  await client.query("DROP TABLE IF EXISTS instrument_order");
+  await client.query("DROP TYPE IF EXISTS transaction_type");
 }

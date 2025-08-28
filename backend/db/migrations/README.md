@@ -8,24 +8,24 @@ This directory contains step-by-step database migrations for the TradeBot applic
 - **Version**: 1.0.0
 - **Description**: Create instruments and market data tables
 - **Tables Created**:
-  - `instruments` - Trading instruments (stocks, indices, etc.)
+  - `instrument` - Trading instruments (stocks, indices, etc.)
   - `tick_data` - Raw tick-by-tick market data
-  - `ohlc_candles` - OHLC candlestick data
-  - `order_book_snapshots` - Order book snapshots
+  - `ohlcv_candle` - OHLC candlestick data
+  - `order_book_snapshot` - Order book snapshots
 
 ### 002_create_order_management_tables.ts
 - **Version**: 2.0.0
 - **Description**: Create order management tables
 - **Tables Created**:
-  - `orders` - Trading orders
+  - `instrument_order` - Trading orders
   - `order_history` - Order status change history
 
 ### 003_create_positions_and_strategies_tables.ts
 - **Version**: 3.0.0
 - **Description**: Create positions and strategies tables
 - **Tables Created**:
-  - `positions` - Trading positions
-  - `strategies` - Trading strategy configurations
+  - `position` - Trading positions
+  - `strategy` - Trading strategy configurations
 
 ### 004_create_broker_credentials_table.ts
 - **Version**: 4.0.0
@@ -64,6 +64,18 @@ This directory contains step-by-step database migrations for the TradeBot applic
   - `ohlc_candles`: Compress after 30 days
   - `order_book_snapshots`: Compress after 1 day
 
+### 009_create_instrument_type_tables.ts
+- **Version**: 9.0.0
+- **Description**: Create tables for instrument types, open interest, and daily OHLCV
+- **Tables Created**:
+  - `stock` - Stock-specific data (ISIN, sector, industry, market cap, etc.)
+  - `index` - Index-specific data (base year, base value, constituents, etc.)
+  - `option` - Option-specific data (underlying, strike price, expiry, option type)
+  - `future` - Future-specific data (underlying, expiry, lot size, margin)
+  - `open_interest` - Open interest tracking data
+  - `daily_ohlcv` - Daily OHLCV data with additional metrics (turnover, delivery, etc.)
+  - `index_constituent` - Index constituents with weightage, shares outstanding, effective and end dates
+
 ## Migration Execution
 
 Migrations should be executed in numerical order. Each migration:
@@ -80,7 +92,7 @@ The migrations have logical dependencies:
 - Migration 005 depends on 001-004 (creates indexes on existing tables)
 - Migration 006 depends on 001 (converts tables to hypertables)
 - Migrations 007-008 depend on 006 (hypertable policies)
-- Migration 009 depends on 001,003 (inserts data into instruments and strategies)
+- Migration 009 depends on 001 (creates instrument type tables referencing instruments)
 
 ## Best Practices
 

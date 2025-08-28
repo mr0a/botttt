@@ -1,6 +1,6 @@
 import type { PgClient } from "../../src/lib/database";
 
-export const version = "6.0.0";
+export const version = "7.0.0";
 export const description = "Setup TimescaleDB hypertables";
 
 export async function up(client: PgClient): Promise<void> {
@@ -23,9 +23,9 @@ export async function up(client: PgClient): Promise<void> {
     BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM timescaledb_information.hypertables 
-        WHERE hypertable_name = 'ohlc_candles'
+        WHERE hypertable_name = 'ohlcv_candle'
       ) THEN
-        PERFORM create_hypertable('ohlc_candles', 'time', chunk_time_interval => INTERVAL '1 day');
+        PERFORM create_hypertable('ohlcv_candle', 'time', chunk_time_interval => INTERVAL '1 day');
       END IF;
     END $$
   `);
@@ -35,10 +35,36 @@ export async function up(client: PgClient): Promise<void> {
     DO $$
     BEGIN
       IF NOT EXISTS (
-        SELECT 1 FROM timescaledb_information.hypertables 
-        WHERE hypertable_name = 'order_book_snapshots'
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'order_book_snapshot'
       ) THEN
-        PERFORM create_hypertable('order_book_snapshots', 'time', chunk_time_interval => INTERVAL '1 hour');
+        PERFORM create_hypertable('order_book_snapshot', 'time', chunk_time_interval => INTERVAL '1 hour');
+      END IF;
+    END $$
+  `);
+
+  // Convert open_interest to hypertable if not already done
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'open_interest'
+      ) THEN
+        PERFORM create_hypertable('open_interest', 'time', chunk_time_interval => INTERVAL '1 day');
+      END IF;
+    END $$
+  `);
+
+  // Convert daily_ohlcv to hypertable if not already done
+  await client.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM timescaledb_information.hypertables
+        WHERE hypertable_name = 'daily_ohlcv'
+      ) THEN
+        PERFORM create_hypertable('daily_ohlcv', 'date', chunk_time_interval => INTERVAL '1 year');
       END IF;
     END $$
   `);
