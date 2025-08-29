@@ -2,12 +2,14 @@ import { Container } from "inversify";
 import { TYPES } from "./types";
 import { Server } from "@src/services/server";
 import { logger } from "../logger";
+import { db } from "../database";
 // import { LiveApplication } from "../../main";
 import { FlattradeBroker } from "@src/lib/brokers/flattrade";
 import type { IBrokerService } from "../../interfaces/broker.interface";
 // import { StrategyManager } from "../strategy/strategy-manager";
 import { type BrokerFactory, BrokerFactoryImpl } from "./broker-factory";
 import { LiveApplication } from "@src/main/live-app";
+import type { ApplicationMode } from "@src/types/main/application";
 
 // export const container = new Container();
 export class ContainerSetup {
@@ -16,6 +18,7 @@ export class ContainerSetup {
 
     // Bind logger as a constant value since it's already configured
     container.bind(TYPES.Logger).toConstantValue(logger);
+    container.bind(TYPES.Database).toConstantValue(db); // Although db is available in container but it shouldn't be used as a best practice
 
     // Bind server
     container.bind<Server>(TYPES.Server).to(Server).inSingletonScope();

@@ -1,6 +1,7 @@
 import { injectable, inject, Container } from "inversify";
 import type { IBrokerService } from "../../interfaces/broker.interface";
 import { ConfigService } from "../config";
+import type { ApplicationMode } from "@src/types/main/application";
 
 export interface BrokerFactory {
   createBroker(accountId: string, mode: ApplicationMode): IBrokerService;

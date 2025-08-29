@@ -2,6 +2,7 @@ import { injectable, inject } from "inversify";
 import { Server } from "../services/server";
 import { TYPES } from "../lib/container/types";
 import type { ILogger } from "../lib/logger/types";
+import type { ApplicationMode } from "@src/types/main/application";
 
 @injectable()
 export class LiveApplication {

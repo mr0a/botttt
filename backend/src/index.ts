@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { BacktestApplication, LiveApplication } from "./main";
 import { ContainerSetup } from "@src/lib/container/container";
 import { logger } from "@src/lib/logger";
+import type { AppConfig, ApplicationMode } from "./types/main/application";
 
 export class AppBootstrap {
   static async start(): Promise<void> {
