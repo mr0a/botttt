@@ -1,3 +1,4 @@
+import type { BrokerConfig } from "@src/types/broker";
 import { logger } from "../logger";
 
 export class ConfigService {
