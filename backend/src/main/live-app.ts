@@ -17,8 +17,10 @@ export class LiveApplication {
   }
 
   initialise(mode: ApplicationMode): void {
+    // This method should initialise the different services.
     this.logger.info({ mode }, "Initialising application...");
     this.logger.info("Application initialised successfully");
+    // TODO: Initialise other services
   }
 
   start(): void {
