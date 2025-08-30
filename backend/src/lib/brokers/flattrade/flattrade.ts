@@ -9,6 +9,10 @@ import type {
 
 @injectable()
 export class FlattradeBroker implements IBrokerService {
+  userId: string = "";
+  apiKey: string = "";
+  apiSecret: string = "";
+
   connect(): Promise<void> {
     throw new Error("Method not implemented.");
   }

@@ -1,4 +1,8 @@
 export interface IBrokerService {
+  userId: string;
+  apiKey: string;
+  apiSecret: string;
+
   authenticate(credentials: BrokerCredentials): Promise<void>;
   connect(): Promise<void>;
   disconnect(): Promise<void>;

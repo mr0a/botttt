@@ -4,7 +4,7 @@ import { Server } from "@src/services/server";
 import { logger } from "../logger";
 import { db } from "../database";
 // import { LiveApplication } from "../../main";
-import { FlattradeBroker } from "@src/lib/brokers/flattrade";
+import { FlattradeBroker } from "@src/lib/brokers/flattrade/flattrade";
 import type { IBrokerService } from "../../interfaces/broker.interface";
 // import { StrategyManager } from "../strategy/strategy-manager";
 import { type BrokerFactory, BrokerFactoryImpl } from "./broker-factory";
